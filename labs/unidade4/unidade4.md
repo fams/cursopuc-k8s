@@ -662,3 +662,10 @@ Aprender as várias formas de uso de um configmap em um pod
         }
        ```
 
+3. Remova todos os recursos criados:
+
+    ```bash
+    kubectl delete deployment apitool
+    kubectl delete statefulset mongodb
+    kubectl delete configmap apitool-conf apitool-schemas
+    ```
