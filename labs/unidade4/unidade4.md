@@ -181,10 +181,10 @@ Criar e gerenciar um `Deployment` no Kubernetes, verificar seus detalhes, reinic
               version: "v1.0"
           spec:
             containers:
-            - name: nginx-container
-              image: nginx:1.26
+            - name: kube-tester
+              image: sverrirab/kube-test-container:v1.0
               ports:
-              - containerPort: 80
+              - containerPort: 8000
         strategy:
           type: RollingUpdate
           rollingUpdate:
@@ -205,7 +205,7 @@ Criar e gerenciar um `Deployment` no Kubernetes, verificar seus detalhes, reinic
        ```
 
 2. Disparando um rollout por alteração do manifesto
-   1. Edite o arquivo `my-deployment.yaml` para atualizar a versão do `nginx` para 1.27:
+   1. Edite o arquivo `my-deployment.yaml` para atualizar a versão do `kube-test-container` para 1.1:
 
       ```yaml
       apiVersion: apps/v1
@@ -224,10 +224,10 @@ Criar e gerenciar um `Deployment` no Kubernetes, verificar seus detalhes, reinic
               version: "v1.0"
           spec:
             containers:
-            - name: nginx-container
-              image: nginx:1.27 # <=====
+            - name: kube-tester
+              image: sverrirab/kube-test-container:v1.1 # <============
               ports:
-              - containerPort: 80
+              - containerPort: 8000
         strategy:
           type: RollingUpdate
           rollingUpdate:
@@ -292,21 +292,23 @@ Criar um serviço `ClusterIP` para o `Deployment` criado anteriormente, verifica
    1. Crie o serviço `ClusterIP` de forma declarativa:
 
       ```bash
-      kubectl create service clusterip my-svc -o yaml --dry-run=client | \
-      kubectl set selector --local 'app.kubernetes.io/name=nginx' -f - -o yaml | \
-      kubectl create -f -
+        kubectl create service clusterip my-svc --tcp '8000:8000' -o yaml --dry-run=client | \
+        kubectl set selector --local -f - 'app=myapp,version=v1.0' -o yaml | \
+        kubectl create service -f -
       ```
 
-   2. Verifique o serviço:
+   2. Verifique o serviço e veja os detalhees:
 
       ```bash
       kubectl get svc my-svc
+      kubectl describe svc my-svc
       ```
 
-   3. Verifique detalhes do serviço:
+   3. Certifique-se que o service está encaminhando para os pods do deployment
 
       ```bash
-      kubectl describe svc my-svc
+      kubectl get pods -l app=myapp -o wide
+      kubectl get endpoints my-svc
       ```
 
 2. Verificação do Serviço
@@ -316,23 +318,38 @@ Criar um serviço `ClusterIP` para o `Deployment` criado anteriormente, verifica
       kubectl get pods -l app=myapp
       ```
 
-   2. Teste a conectividade com o serviço:
+   2. Teste a conectividade com o serviço, mas atenção! O nome `my-svc` só é resolvivel dentro do cluster. Ele é provido pelo kube-dns ou core-dns.
 
       ```bash
       kubectl exec -it <pod-name> -- curl my-svc
       ```
 
+   3. Teste o aceesso ao serviço pela sua máquina utilizando o port-forward. O Comnando port-forward te permite contectar-se a uma porta sendo ouvida no cluster, por um pod ou serviço, utilizando uma porta local como ponte
+
+      ```bash
+      kubectl port-forward svc/my-svc 8080:8080 &
+      curl http://localhost:8080
+      ```
+
+
 3. Gerenciamento do Serviço
-   1. Escale o `Deployment` para 5 réplicas:
+   1. Verifique quantos endpoints existem para o serviço:
+
+      ```bash
+      kubectl get endpoints my-svc -o wide
+      ```
+
+   2. Escale o `Deployment` para 5 réplicas e verifique que o número aumentou:
 
       ```bash
       kubectl scale deployment my-deployment --replicas=5
+      kubectl get pods -l app=myapp
       ```
 
-   2. Verifique se o serviço está roteando tráfego para os novos pods:
+   3. Verifique se o serviço está roteando tráfego para os novos pods:
 
       ```bash
-      kubectl exec -it <pod-name> -- curl my-svc
+      kubectl get endpoints my-svc -o wide
       ```
 
 4. Limpeza
@@ -342,3 +359,306 @@ Criar um serviço `ClusterIP` para o `Deployment` criado anteriormente, verifica
       kubectl delete svc my-svc
       kubectl delete deployment my-deployment
       ```
+
+---
+
+## Lab 5 Criando confiMaps
+
+### Objetivo
+
+Vimos como criar e configMap no primeiro Lab. Vamos aprender a criar e usá-los de outras formas
+
+---
+
+1. Criando configMaps a partir de um arquivo:
+
+   1. Utilizando os arquivos no diretório lab5 crie o configmap `api-schemas`:
+
+      ```bash
+      kubectl create configmap apitool-schemas --from-file=lab5/users.json --from-file=lab5/products.json --namespace=default --dry-run=client -o yaml > api-schemas.yaml
+      ```
+
+   2. Você deve ter obtido algo parecido com isso:
+
+      ```yaml
+        apiVersion: v1
+        data:
+          products.json: |-
+            {
+                "colletction_name": "products",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "price": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "stock": {
+                            "type": "integer",
+                            "minimum": 0
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "price"
+                    ]
+                }
+            }
+          users.json: |-
+            {
+                "colletction_name": "users",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "username": {
+                            "type": "string"
+                        },
+                        "email": {
+                            "type": "string",
+                            "format": "email"
+                        },
+                        "age": {
+                            "type": "integer",
+                            "minimum": 0
+                        }
+                    },
+                    "required": [
+                        "username",
+                        "email"
+                    ]
+                }
+            }
+        kind: ConfigMap
+        metadata:
+          creationTimestamp: null
+          name: apitool-schemas
+          namespace: default
+        
+      ```
+
+   3. Isso acontece porque o yaml é um mapa, os nomes dos campos são ordenados alfabeticamente no mesmo nível para representação. Reordanize na ordem apiVersion, kind, metadata, data. Repare que o configmap não possui spec. Não é um objeto implementável, somente possui dados.
+   4. Aplique o configmap:
+
+      ```bash
+        kubectl apply -f api-schemas.yaml      
+      ```
+
+2. Agora vamos ver outra formas de criar um configmap.
+
+   1. Crie o configmap a partir da linha de comando :
+
+      ```bash
+      kubectl create configmap -n default apitool-conf --from-literal=MONGO_URI=mongodb://mongodb.default.svc:27017/my_database --dry-run=client -o yaml > apitool-conf.yaml
+      ```
+
+   2. Vefirique o arquivo criado. Ele deve ser algo parecido com isso:
+
+      ```yaml
+        apiVersion: v1
+        data:
+          MONGO_URI: mongodb://mongo.default.svc:27017/my_database
+        kind: ConfigMap
+        metadata:
+          creationTimestamp: null
+          name: apitool-conf
+          namespace: default
+      ```
+
+   3. Repare que a ordem apiversion, kind e metaadata não é respeitada, isso acontece porque o yaml gera um mapa e o comando, na falta de uma ordem pré-definida, coloca os elementos do mesmo nível em ordem alfabética. Veja também o _creationTimestamp: null_. Como executamos o comando com dry-run, não foi adicionado um marcador de tempo. Se desejar, pode reorganizar o arquivo. Após isso, aplique o configmap.
+
+      ```bash
+      kubectl apply -f apitool-conf.yaml
+      ```
+
+---
+
+## Lab 6 Montando configMaps
+
+### Objetivo
+
+Aprender as várias formas de uso de um configmap em um pod
+
+1. Para esse lab iremos utilizar uma aplicação simples de api. Essa api cria um CRUD simples, salvando em um banco mongodb utilizando arquivos json especificados. Por padrão, veremos que a api está provendo a coleçao users e a configuração do banco mongodb está diretamente feita no manifesto do deployment. Vamos aos passos de instalação
+
+   1. Implante o mongo no seu cluster com o arquivo do lab6/mongo.yaml
+
+        ```bash
+        kubectl apply -f lab6/mongo.yaml
+        ```
+
+   2. Iremos implantar uma api genérica CRUD. Inicialmente iremos simplesmente instalá-la
+
+        ```bash
+        kubectl apply -f lab6/simple-crud.yaml
+        ```
+
+   3. Verifique que a api está funcionando e roteando corretamente:
+
+        ```bash
+        kubectl get pods |grep apitool
+        kubectl get endpoints apitool-svc -o wide
+        ```
+
+   4. Verifique que a api está provendo a coleção users:
+
+        ```bash
+        kubectl port-forward svc/apitool-service 5000:5000 & # Esse é o nome do serviço criado pelo arquiv simple-crud.yaml
+        curl http://localhost:5000/collections
+        ```
+
+   5. Você deve obter algo parecido com isso, se for formatado:
+
+        ```json
+            {
+              "collections": [
+                {
+                  "created": true,
+                  "name": "users",
+                  "schema": {
+                    "properties": {
+                      "age": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "email": {
+                        "format": "email",
+                        "type": "string"
+                      },
+                      "password": {
+                        "minLength": 8,
+                        "type": "string"
+                      },
+                      "username": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "username",
+                      "email",
+                      "password"
+                    ],
+                    "type": "object"
+                  }
+                }
+              ]
+            }
+        ```
+
+2. Vamos agora configurar utilizando os configmaps criados no lab de configmaps:
+
+    1. Vamos obter o endpoint do mongo utilizando o configmap apitool-conf, edite o deployment do apitool e troque a variável fixa `MONGO_URI` para uma oriunda do configmap.
+
+       ```yml
+        # De 
+        env:
+        - name: MONGO_URI
+          value: "mongodb://mongodb:27017/my_database"
+        # Para 
+        env :
+        - name: MONGO_URI
+          valueFrom:
+            configMapKeyRef:
+              name: apitool-conf
+              key: MONGO_URI
+        ```
+
+    2. Aplique a alteração no deployment. Refaça as verificações do passo 1 para testar o funcionamento.
+
+        ```bash
+        kubectl port-forward svc/apitool-service 5000:5000 &
+        curl http://localhost:5000/collections            
+        ```
+
+    3. Agora vamos montar o configmap de schemas como diretório dentro do deployment. Precisamos adicionar o configmap como volume ao pod e definir no container o seu ponto de montagem:
+
+        No nível da definiçao de containers, adicione o volume:
+
+        ```yaml
+        volumes:
+          - name: schemas
+            configMap:
+              name: apitool-schemas
+        ```
+
+        No nível do container, adicione o ponto de montagem:
+
+        ```yaml
+        ...
+        ports:
+        - containerPort: 5000
+          name: http
+          volumeMounts:
+            - name: schemas
+              mountPath: /app/schemas
+        ...
+        ```
+
+        Repare que o nome do volumeMount referencia o nome dado ao colume e não ao nome do configMap. Eles podem ser iguais mas não é obrigatório
+
+    4. Aplique a mudança no deployment e vamos verificar o funcionamento da api:
+
+        ```kubectl
+        kubectl port-forward svc/apitool-service 5000:5000 &
+        curl http://localhost:5000/collections
+        ```
+
+       Você deve obeter algo parecido com isso:
+
+       ```yml
+        {
+          "collections": [
+            {
+              "created": true,
+              "name": "users",
+              "schema": {
+                "properties": {
+                  "age": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "email": {
+                    "format": "email",
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username",
+                  "email"
+                ],
+                "type": "object"
+              }
+            },
+            {
+              "created": false,
+              "name": "products",
+              "schema": {
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "stock": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "name",
+                  "price"
+                ],
+                "type": "object"
+              }
+            }
+          ]
+        }
+       ```
+

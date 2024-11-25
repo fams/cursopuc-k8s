@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apitool
+  labels:
+    app: apitool
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apitool
+  template:
+    metadata:
+      labels:
+        app: apitool
+    spec:
+      containers:
+      - name: apitool
+        image: fams/simple-crud:v0.1.4
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: MONGO_URI
+          value: "mongodb://mongodb:27017/my_database"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apitool-service
+  labels:
+    app: apitool
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5000
+    targetPort: 5000
+    protocol: TCP
+    name: http
+  - port: 5678
+    targetPort: 5678
+    protocol: TCP
+    name: debug
+  selector:
+    app: apitool
