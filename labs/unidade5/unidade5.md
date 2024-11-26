@@ -134,14 +134,14 @@ Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenc
         kubectl logs $(kubectl get pod -l app=alpine-reader -o name) -f
         ```
 
-    6. Limpeza:
+3. Limpeza:
 
-        ```bash
-        kubectl delete -f lab7/writer-pvc.yaml
-        kubectl delete -f lab7/reader-pvc.yaml
-        kubectl delete -f lab7/pvc-2G.yaml
-        kubectl delete -f lab7/pre-provisioned.yaml
-        ```
+     ```bash
+     kubectl delete -f lab7/writer-pvc.yaml
+     kubectl delete -f lab7/reader-pvc.yaml
+     kubectl delete -f lab7/pvc-2G.yaml
+     kubectl delete -f lab7/pre-provisioned.yaml
+    ```
 
 ## Lab 8
 
@@ -210,5 +210,4 @@ Exitem outros campos disponíveis, como paramêters que irá passar argumentos p
     kubectl delete -f lab8/writer-pvc.yaml
     kubectl delete -f lab8/reader-pvc.yaml
     kubectl delete -f lab8/pvc-dynamic.yaml
-
     ```
