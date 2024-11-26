@@ -124,3 +124,91 @@ Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenc
         kubectl get pod -w
         kubectl apply -f lab6/reader-pvc.yaml
         ```
+
+    5. Verifique o funcionamento dos pods reader e writer utilizando o volume com o `PVC`:
+
+       ```bash
+        # Logs do escritor     
+        kubectl logs $(kubectl get pod -l app=alpine-writer -o name) -f
+        # logs do leitor
+        kubectl logs $(kubectl get pod -l app=alpine-reader -o name) -f
+        ```
+
+    6. Limpeza:
+
+        ```bash
+        kubectl delete -f lab7/writer-pvc.yaml
+        kubectl delete -f lab7/reader-pvc.yaml
+        kubectl delete -f lab7/pvc-2G.yaml
+        kubectl delete -f lab7/pre-provisioned.yaml
+        ```
+
+## Lab 8
+
+### Exercício: Provisionando volumes de forma dinâmica
+
+#### Objetivo
+
+Aprender a utilizar volumes provisionados dinâmicamente no kubernetes e passar pelas fases do gerenciamento de volumes.
+
+##### Introdução
+
+O Provisionamento dinâmico depende do StorageClass, uma espécie de profile de criação de Volumes para o cluster. O storageClass pré-existente no docker-desktop é o HostPath:
+
+```yml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+    name: hostpath
+provisioner: docker.io/hostpath
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+```
+
+O `provisioner` define qual módulo de provisonamento instalado no cluster será utilizado. Hoje em dia os povisionadores utilizam majoritariamente o CSI (Container Storage Interface) que podem ser instalados de terceiros
+O `volumeBindingMode` informa se o `PV` deve ser criado ao se ligar ao `PVC` ou quando o `POD` tentar montá-lo.
+O `reclaimPolicy` tem o mesmo papel que no `PV`
+Exitem outros campos disponíveis, como paramêters que irá passar argumentos para o provisionador.
+
+1. Vamos agora provisionar um `PV` utilizando `PVC` com StorageClass
+
+    1. Aplique o manifesto do `PVC`:
+
+        ```bash
+        kubectl apply -f lab8/pvc-sc.yaml
+        kubectl get pvc dynamic-claim
+        ```
+
+    2. Verifique a criaçao do `PV`:
+
+        ```bash
+        kubectl get pv
+        ```
+
+2. Podemos agora criar os `deployments` writer e reader utilizando esse `PVC`
+
+    1. Agora vamos montar os pods reader e writer usando o PVC:
+
+        ```bash
+        kubectl apply -f lab8/writer-pvc.yaml
+        kubectl get pod -w
+        kubectl apply -f lab8/reader-pvc.yaml
+        ```
+
+    2. Verifique o funcionamento dos pods reader e writer utilizando o volume com o `PVC`:
+
+       ```bash
+        # Logs do escritor     
+        kubectl logs $(kubectl get pod -l app=alpine-writer -o name) -f
+        # logs do leitor
+        kubectl logs $(kubectl get pod -l app=alpine-reader -o name) -f
+        ```
+
+3. Limpeza:
+
+    ```bash
+    kubectl delete -f lab8/writer-pvc.yaml
+    kubectl delete -f lab8/reader-pvc.yaml
+    kubectl delete -f lab8/pvc-dynamic.yaml
+
+    ```
