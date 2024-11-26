@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alpine-writer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alpine-writer
+  template:
+    metadata:
+      labels:
+        app: alpine-writer
+    spec:
+      containers:
+      - name: alpine-writer
+        image: alpine
+        command: ["/bin/sh", "-c", "while true; do echo $(date) >> /mnt/data/date.txt; sleep 1; ls -lart /mnt/data ; done"]
+        volumeMounts:
+        - name: data-volume
+          mountPath: /mnt/data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+      volumes:
+      - name: data-volume
+        hostPath:
+          path: /var/lib/k8s-pvs/direct-volume
+          type: DirectoryOrCreate

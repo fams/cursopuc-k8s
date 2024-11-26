@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alpine-reader
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alpine-reader
+  template:
+    metadata:
+      labels:
+        app: alpine-reader
+    spec:
+      containers:
+      - name: alpine-reader
+        image: alpine
+        command: ["/bin/sh", "-c", "tail -f /mnt/data/date.txt"]
+        volumeMounts:
+        - name: data-volume
+          mountPath: /mnt/data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: static-claim
