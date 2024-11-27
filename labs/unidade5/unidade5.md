@@ -223,7 +223,7 @@ Compreeender o funcionamento do controle de acesso RBAC no kubernetes
 ##### Introdução
 
 Controle de acesso pode ser dividido entree AuthN AuthZ, respectivamente autenticação e autorizaçao. Nesse lab faremos o foco no AuthZ, uma vez que existem diversas formas de autenticação no Kubernetes.
-Além de um kubernetes configurado e accessível, será necessário o comando jq instalado.
+Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instalado:
 
 1. Vamos criar um usuário `puc-devops` com autenticação por certificado.
 
@@ -267,7 +267,7 @@ Além de um kubernetes configurado e accessível, será necessário o comando jq
    2. Obtento o certificado e configurando o usuário:
 
         ```bash
-        # Aprove o certificado
+            # Aprove o certificado
         kubectl certificate approve puc-devops
         
         # Verifique que o certificado está aprovado e obtenha o PEM 
@@ -280,8 +280,53 @@ Além de um kubernetes configurado e accessível, será necessário o comando jq
         ```
 
         ```bash
-        # Obter o certificado assinado pela CA do cluster, salvando-o em formatdo pem codificado base64.
-        # PS: O formato pem já é codificado base64, porem com headers e trailers.
-        # Para colocarmos no manifesto precisamos de uma string contínua)
-        kubectl get csr puc-devops -o jsonpath="{.status.certificate}"|tee puc-devops.cert|base64 -d |openssl x509 -text -noout
+        # Obter o certificado assinado pela CA do cluster, salvando-o em formatdo PEM e mostrando seus atributos na tela
+        
+        kubectl get csr puc-devops -o jsonpath="{.status.certificate}"|base64 -d|tee puc-devops.crt |openssl x509 -text -noout
         ```
+
+   3. Configurando o acesso com o novo usuário
+
+        ```bash
+        # Criando o usuário no arquivo de configuração usando o .crt obtido do cluster e o .pem gerado
+        kubectl  config set-credentials puc-devops --client-certificate=puc-devops.crt --client-key=puc-devops.pem --embed-certs=true
+
+        # Visualize a configuração
+        kubectl config view -o jsonpath='{.users[?(@.name=="puc-devops")]}' | jq
+        ```
+
+        ```bash
+        # Obtendo dados da configuração atual
+        
+        # Obtendo o contexto. Contexto é uam configuração de acesso ao kubernets que possui os dados de acesso à API e os dados de autenticação.Cluster + User
+        kubectl config view -o jsonpath='{.current-context}'
+        # No meu caso:
+        "docker-desktop"
+        
+        # Obtendo os dados do contexto 
+        kubectl config view -o jsonpath='{.contexts[?(@.name =="docker-desktop")]}' | jq
+        
+        {
+          "name": "docker-desktop",
+          "context": {
+            "cluster": "docker-desktop",
+            "user": "docker-desktop"
+          }
+        }
+        
+        # Criando um contexto com o novo usuário com o cluster do contexto atual
+        kubectl config set-context docker-desktop-puc-devops --cluster=docker-desktop --user=puc-devops
+      
+        kubectl config view -o jsonpath='{.contexts[?(@.name =="docker-desktop-puc-devops")]}'
+        ```
+
+        Agora você pode fazer chamadas para o cluster com o novo usuário, mas esse novo usuário não tem nenhuma permissão:
+
+        ```bash
+        kubectl --context docker-desktopo-puc-devops get pod
+        ```
+
+        Também é possível definir o contexto default para o novo contexto, sem ter que passar o nome na linha de comando, porem será mais difícil fazer a configuração das pemissões.
+
+
+
