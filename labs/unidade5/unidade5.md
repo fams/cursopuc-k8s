@@ -143,6 +143,8 @@ Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenc
      kubectl delete -f lab7/pre-provisioned.yaml
     ```
 
+---
+
 ## Lab 8
 
 ### Exercício: Provisionando volumes de forma dinâmica
@@ -169,6 +171,8 @@ O `provisioner` define qual módulo de provisonamento instalado no cluster será
 O `volumeBindingMode` informa se o `PV` deve ser criado ao se ligar ao `PVC` ou quando o `POD` tentar montá-lo.
 O `reclaimPolicy` tem o mesmo papel que no `PV`
 Exitem outros campos disponíveis, como paramêters que irá passar argumentos para o provisionador.
+
+##### Passos
 
 1. Vamos agora provisionar um `PV` utilizando `PVC` com StorageClass
 
@@ -212,6 +216,8 @@ Exitem outros campos disponíveis, como paramêters que irá passar argumentos p
     kubectl delete -f lab8/pvc-dynamic.yaml
     ```
 
+---
+
 ## LAB 9
 
 ### Exercício: RBAC
@@ -223,7 +229,9 @@ Compreeender o funcionamento do controle de acesso RBAC no kubernetes
 ##### Introdução
 
 Controle de acesso pode ser dividido entree AuthN AuthZ, respectivamente autenticação e autorizaçao. Nesse lab faremos o foco no AuthZ, uma vez que existem diversas formas de autenticação no Kubernetes.
-Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instalado:
+Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instalado.
+
+##### Passos
 
 1. Vamos criar um usuário `puc-devops` com autenticação por certificado.
 
