@@ -211,3 +211,77 @@ Exitem outros campos disponíveis, como paramêters que irá passar argumentos p
     kubectl delete -f lab8/reader-pvc.yaml
     kubectl delete -f lab8/pvc-dynamic.yaml
     ```
+
+## LAB 9
+
+### Exercício: RBAC
+
+#### Objetivo
+
+Compreeender o funcionamento do controle de acesso RBAC no kubernetes
+
+##### Introdução
+
+Controle de acesso pode ser dividido entree AuthN AuthZ, respectivamente autenticação e autorizaçao. Nesse lab faremos o foco no AuthZ, uma vez que existem diversas formas de autenticação no Kubernetes.
+Além de um kubernetes configurado e accessível, será necessário o comando jq instalado.
+
+1. Vamos criar um usuário `puc-devops` com autenticação por certificado.
+
+   1. Criando o CSR para o usuário:
+
+        ```bash
+        # Criando uma chave privada RSA 
+        openssl genrsa -out puc-devops.pem
+        
+        # Gerando um Certificate Signing Request 
+        openssl req -new -key puc-devops.pem -out puc-devops.csr -subj "/CN=puc-devops"
+        
+        # Gerando um manifesto de CSR no kubernetes
+        cat <<EOF | kubectl apply -f - 
+        apiVersion: certificates.k8s.io/v1
+        kind: CertificateSigningRequest
+        metadata:
+          name: puc-devops
+        spec:
+          request: $(cat puc-devops.csr |base64 -w0)
+          signerName: kubernetes.io/kube-apiserver-client
+          expirationSeconds: 86400  # one day
+          usages:
+          - digital signature
+          - key encipherment
+          - client auth
+        EOF
+        
+        # Obtendo o status
+        kubectl get csr
+        ```
+
+        Resultado será algo assim
+
+        ```bash
+        certificatesigningrequest.certificates.k8s.io/puc-devops created
+        NAME         AGE   SIGNERNAME                            REQUESTOR            REQUESTEDDURATION   CONDITION
+        puc-devops   0s    kubernetes.io/kube-apiserver-client   docker-for-desktop   24h                 Pending
+        ```
+
+   2. Obtento o certificado e configurando o usuário:
+
+        ```bash
+        # Aprove o certificado
+        kubectl certificate approve puc-devops
+        
+        # Verifique que o certificado está aprovado e obtenha o PEM 
+        kubectl get csr puc-devops
+        ```
+
+        ```bash
+        NAME         AGE   SIGNERNAME                            REQUESTOR            REQUESTEDDURATION   CONDITION
+        puc-devops   45s   kubernetes.io/kube-apiserver-client   docker-for-desktop   24h                 Approved,Issued        
+        ```
+
+        ```bash
+        # Obter o certificado assinado pela CA do cluster, salvando-o em formatdo pem codificado base64.
+        # PS: O formato pem já é codificado base64, porem com headers e trailers.
+        # Para colocarmos no manifesto precisamos de uma string contínua)
+        kubectl get csr puc-devops -o jsonpath="{.status.certificate}"|tee puc-devops.cert|base64 -d |openssl x509 -text -noout
+        ```
