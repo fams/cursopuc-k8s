@@ -1,0 +1,9 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: kube-system # <- Namespace onde a Role será aplicada
+  name: pod-reader       # <- Nome da Role. Pode ser qualquer coisa, recomenda-se algo descritivo
+rules:
+- apiGroups: [""]        # <- Grupo de API. Para recursos pod é vazio por se tratar da core
+  resources: ["pods"]    # <- Recurso que a Role terá acesso
+  verbs: ["get", "list"] # <- Verbos que a Role terá acesso

@@ -328,5 +328,40 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
 
         Também é possível definir o contexto default para o novo contexto, sem ter que passar o nome na linha de comando, porem será mais difícil fazer a configuração das pemissões.
 
+2. Iremos dar permissão para o novo usuário ler os pods, configmaps e deployments no namespace kube-system:
 
+    ```bash
+    # Crie a role pod-reader utilizando o manifesto presente no diretório lab9
+    kubectl apply -f lab9/pod-reader.yaml
+    
+    # Faça a ligação da role, que contem as permissões com o usuário que será autenticado através do certificado
+    kubectl apply -f lab9/devops-role-binding.yaml
+    ```
 
+    Agora é possível ler os pods da namespace kube-system com o usuário puc-devops
+
+    ```bash
+    kubectl --context docker-desktop-puc-devops -n kube-system get pod
+    ```
+
+3. A permissão de role e role-binding vale somente para a namespace que os objetos foram criados:
+
+    ```bash
+    kubectl --context docker-desktop-puc-devops -n default get pod
+    ```
+
+    Permissões para todo o cluster exigem Roles e Bindings globais chamadas ClusterRoles e ClusterRolebindings
+
+    Aplique os manifestos de cluster presente no lab
+
+    ```bash
+    kubectl apply -f lab9/cluster-role-pod-reader.yaml
+    kubectl apply -f lab9/cluster-rolebinding-devops-role-binding.yaml
+    ```
+
+    Agora as operações com esse usuário tem permissão em todo o cluster
+
+    ```bash
+    kubectl --context docker-desktop-puc-devops  get pod
+    kubectl --context docker-desktop-puc-devops  get pod -A 
+    ```
