@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: svc-reader-group-devs        # <- Nome do RoleBinding. Pode ser qualquer coisa, recomenda-se algo descritivo
+subjects:
+- kind: Group
+  name: devs                     # <- Nome do grupo que terá acesso, será extraído do "O" do subject do certificado que criamos
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: svc-reader                     # <- Nome da Role que será aplicada
+  apiGroup: rbac.authorization.k8s.io

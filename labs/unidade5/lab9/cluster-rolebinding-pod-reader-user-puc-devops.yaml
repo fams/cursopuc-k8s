@@ -1,13 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
-  name: puc-devops-role-binding        # <- Nome do RoleBinding. Pode ser qualquer coisa, recomenda-se algo descritivo
-  namespace: kube-system               # <- Namespace onde o RoleBinding será aplicado
+  name: pod-reader-user-puc-devops        # <- Nome do RoleBinding. Pode ser qualquer coisa, recomenda-se algo descritivo
 subjects:
 - kind: User
   name: puc-devops                     # <- Nome do usuário que terá acesso, será extraído do CN certificado que criamos
   apiGroup: rbac.authorization.k8s.io
 roleRef:
-  kind: Role
+  kind: ClusterRole
   name: pod-reader                     # <- Nome da Role que será aplicada
   apiGroup: rbac.authorization.k8s.io

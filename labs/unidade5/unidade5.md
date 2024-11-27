@@ -233,8 +233,8 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
         # Criando uma chave privada RSA 
         openssl genrsa -out puc-devops.pem
         
-        # Gerando um Certificate Signing Request 
-        openssl req -new -key puc-devops.pem -out puc-devops.csr -subj "/CN=puc-devops"
+        # Gerando um Certificate Signing Request. Na autenticação por mTLS, o CN do subject será lido como username no kubernetes e o Organization (O) será lido como grupo 
+        openssl req -new -key puc-devops.pem -out puc-devops.csr -subj "/CN=puc-devops/O=devs"
         
         # Gerando um manifesto de CSR no kubernetes
         cat <<EOF | kubectl apply -f - 
@@ -332,22 +332,34 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
 
     ```bash
     # Crie a role pod-reader utilizando o manifesto presente no diretório lab9
-    kubectl apply -f lab9/pod-reader.yaml
+    kubectl apply -f lab9/role-pod-reader.yaml
     
     # Faça a ligação da role, que contem as permissões com o usuário que será autenticado através do certificado
-    kubectl apply -f lab9/devops-role-binding.yaml
+    kubectl apply -f lab9/rolebinding-pod-reader-puc-devops.yaml
     ```
 
     Agora é possível ler os pods da namespace kube-system com o usuário puc-devops
 
     ```bash
-    kubectl --context docker-desktop-puc-devops -n kube-system get pod
+    >     kubectl --context docker-desktop-puc-devops -n kube-system get pod
+    
+    NAME                                     READY   STATUS    RESTARTS         AGE
+    coredns-76f75df574-8hb5f                 1/1     Running   18 (2d22h ago)   131d
+    coredns-76f75df574-8tvpk                 1/1     Running   18 (2d22h ago)   131d
+    etcd-docker-desktop                      1/1     Running   18 (2d22h ago)   131d
+    kube-apiserver-docker-desktop            1/1     Running   18 (2d22h ago)   131d
+    kube-controller-manager-docker-desktop   1/1     Running   18 (2d22h ago)   131d
+    kube-proxy-jxcnp                         1/1     Running   18 (2d22h ago)   131d
+    kube-scheduler-docker-desktop            1/1     Running   19 (2d22h ago)   131d
+    storage-provisioner                      1/1     Running   38 (2d22h ago)   131d
+    vpnkit-controller                        1/1     Running   18 (2d22h ago)   131d    ```
     ```
 
 3. A permissão de role e role-binding vale somente para a namespace que os objetos foram criados:
 
     ```bash
-    kubectl --context docker-desktop-puc-devops -n default get pod
+    > kubectl --context docker-desktop-puc-devops -n default get pod
+    Error from server (Forbidden): pods is forbidden: User "puc-devops" cannot list resource "pods" in API group "" in the namespace "default"
     ```
 
     Permissões para todo o cluster exigem Roles e Bindings globais chamadas ClusterRoles e ClusterRolebindings
@@ -356,12 +368,53 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
 
     ```bash
     kubectl apply -f lab9/cluster-role-pod-reader.yaml
-    kubectl apply -f lab9/cluster-rolebinding-devops-role-binding.yaml
+    kubectl apply -f lab9/cluster-rolebinding-pod-reader-user-puc-devops.yaml
     ```
 
-    Agora as operações com esse usuário tem permissão em todo o cluster
+    Agora as operações com esse usuário tem permissão de ler pods em todo o cluster
 
     ```bash
-    kubectl --context docker-desktop-puc-devops  get pod
-    kubectl --context docker-desktop-puc-devops  get pod -A 
+    > kubectl --context docker-desktop-puc-devops  get pod
+    NAME    READY   STATUS    RESTARTS   AGE
+    sleep   1/1     Running   0          26s
+
+    > kubectl --context docker-desktop-puc-devops  get pod -A
+    NAMESPACE     NAME                                     READY   STATUS    RESTARTS         AGE
+    default       sleep                                    1/1     Running   0                51s
+    kube-system   coredns-76f75df574-8hb5f                 1/1     Running   18 (2d22h ago)   131d
+    kube-system   coredns-76f75df574-8tvpk                 1/1     Running   18 (2d22h ago)   131d
+    kube-system   etcd-docker-desktop                      1/1     Running   18 (2d22h ago)   131d
+    kube-system   kube-apiserver-docker-desktop            1/1     Running   18 (2d22h ago)   131d
+    kube-system   kube-controller-manager-docker-desktop   1/1     Running   18 (2d22h ago)   131d
+    kube-system   kube-proxy-jxcnp                         1/1     Running   18 (2d22h ago)   131d
+    kube-system   kube-scheduler-docker-desktop            1/1     Running   19 (2d22h ago)   131d
+    kube-system   storage-provisioner                      1/1     Running   38 (2d22h ago)   131d
+    kube-system   vpnkit-controller                        1/1     Running   18 (2d22h ago)   131d
+    ```
+
+4. A permissão do usuário puc-devops se limita a ler os pods. Vamos tentar ler outro recurso
+
+    ```bash
+    > kubectl --context docker-desktop-puc-devops  get svc -A
+    Error from server (Forbidden): services is forbidden: User "puc-devops" cannot list resource "services" in API group "" at the cluster scope
+    ```
+
+5. Vamos dar permissao para o Grupo `devs` ler serviços em todas as namespaces
+
+    ```bash
+    # Criando a ClusterRole
+    kubectl apply -f lab9/cluster-role-svc-reader.yaml
+    
+    #Criando a ClusterRoleBinding
+    kubectl apply -f lab9/cluster-rolebinding-svc-reader-group-devs.yaml
+    ```
+
+6. Agora todos os usuários do grupo Devs, incluíndo o devops-puc, podem ver todos os serviços do cluster
+
+    ```bash
+    > kubectl --context docker-desktop-puc-devops get svc -A
+
+    NAMESPACE     NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)                  AGE
+    default       kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP                  131d
+    kube-system   kube-dns     ClusterIP   10.96.0.10   <none>        53/UDP,53/TCP,9153/TCP   131d
     ```
