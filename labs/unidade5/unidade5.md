@@ -211,3 +211,157 @@ Exitem outros campos disponíveis, como paramêters que irá passar argumentos p
     kubectl delete -f lab8/reader-pvc.yaml
     kubectl delete -f lab8/pvc-dynamic.yaml
     ```
+
+## LAB 9
+
+### Exercício: RBAC
+
+#### Objetivo
+
+Compreeender o funcionamento do controle de acesso RBAC no kubernetes
+
+##### Introdução
+
+Controle de acesso pode ser dividido entree AuthN AuthZ, respectivamente autenticação e autorizaçao. Nesse lab faremos o foco no AuthZ, uma vez que existem diversas formas de autenticação no Kubernetes.
+Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instalado:
+
+1. Vamos criar um usuário `puc-devops` com autenticação por certificado.
+
+   1. Criando o CSR para o usuário:
+
+        ```bash
+        # Criando uma chave privada RSA 
+        openssl genrsa -out puc-devops.pem
+        
+        # Gerando um Certificate Signing Request 
+        openssl req -new -key puc-devops.pem -out puc-devops.csr -subj "/CN=puc-devops"
+        
+        # Gerando um manifesto de CSR no kubernetes
+        cat <<EOF | kubectl apply -f - 
+        apiVersion: certificates.k8s.io/v1
+        kind: CertificateSigningRequest
+        metadata:
+          name: puc-devops
+        spec:
+          request: $(cat puc-devops.csr |base64 -w0)
+          signerName: kubernetes.io/kube-apiserver-client
+          expirationSeconds: 86400  # one day
+          usages:
+          - digital signature
+          - key encipherment
+          - client auth
+        EOF
+        
+        # Obtendo o status
+        kubectl get csr
+        ```
+
+        Resultado será algo assim
+
+        ```bash
+        certificatesigningrequest.certificates.k8s.io/puc-devops created
+        NAME         AGE   SIGNERNAME                            REQUESTOR            REQUESTEDDURATION   CONDITION
+        puc-devops   0s    kubernetes.io/kube-apiserver-client   docker-for-desktop   24h                 Pending
+        ```
+
+   2. Obtento o certificado e configurando o usuário:
+
+        ```bash
+            # Aprove o certificado
+        kubectl certificate approve puc-devops
+        
+        # Verifique que o certificado está aprovado e obtenha o PEM 
+        kubectl get csr puc-devops
+        ```
+
+        ```bash
+        NAME         AGE   SIGNERNAME                            REQUESTOR            REQUESTEDDURATION   CONDITION
+        puc-devops   45s   kubernetes.io/kube-apiserver-client   docker-for-desktop   24h                 Approved,Issued        
+        ```
+
+        ```bash
+        # Obter o certificado assinado pela CA do cluster, salvando-o em formatdo PEM e mostrando seus atributos na tela
+        
+        kubectl get csr puc-devops -o jsonpath="{.status.certificate}"|base64 -d|tee puc-devops.crt |openssl x509 -text -noout
+        ```
+
+   3. Configurando o acesso com o novo usuário
+
+        ```bash
+        # Criando o usuário no arquivo de configuração usando o .crt obtido do cluster e o .pem gerado
+        kubectl  config set-credentials puc-devops --client-certificate=puc-devops.crt --client-key=puc-devops.pem --embed-certs=true
+
+        # Visualize a configuração
+        kubectl config view -o jsonpath='{.users[?(@.name=="puc-devops")]}' | jq
+        ```
+
+        ```bash
+        # Obtendo dados da configuração atual
+        
+        # Obtendo o contexto. Contexto é uam configuração de acesso ao kubernets que possui os dados de acesso à API e os dados de autenticação.Cluster + User
+        kubectl config view -o jsonpath='{.current-context}'
+        # No meu caso:
+        "docker-desktop"
+        
+        # Obtendo os dados do contexto 
+        kubectl config view -o jsonpath='{.contexts[?(@.name =="docker-desktop")]}' | jq
+        
+        {
+          "name": "docker-desktop",
+          "context": {
+            "cluster": "docker-desktop",
+            "user": "docker-desktop"
+          }
+        }
+        
+        # Criando um contexto com o novo usuário com o cluster do contexto atual
+        kubectl config set-context docker-desktop-puc-devops --cluster=docker-desktop --user=puc-devops
+      
+        kubectl config view -o jsonpath='{.contexts[?(@.name =="docker-desktop-puc-devops")]}'
+        ```
+
+        Agora você pode fazer chamadas para o cluster com o novo usuário, mas esse novo usuário não tem nenhuma permissão:
+
+        ```bash
+        kubectl --context docker-desktopo-puc-devops get pod
+        ```
+
+        Também é possível definir o contexto default para o novo contexto, sem ter que passar o nome na linha de comando, porem será mais difícil fazer a configuração das pemissões.
+
+2. Iremos dar permissão para o novo usuário ler os pods, configmaps e deployments no namespace kube-system:
+
+    ```bash
+    # Crie a role pod-reader utilizando o manifesto presente no diretório lab9
+    kubectl apply -f lab9/pod-reader.yaml
+    
+    # Faça a ligação da role, que contem as permissões com o usuário que será autenticado através do certificado
+    kubectl apply -f lab9/devops-role-binding.yaml
+    ```
+
+    Agora é possível ler os pods da namespace kube-system com o usuário puc-devops
+
+    ```bash
+    kubectl --context docker-desktop-puc-devops -n kube-system get pod
+    ```
+
+3. A permissão de role e role-binding vale somente para a namespace que os objetos foram criados:
+
+    ```bash
+    kubectl --context docker-desktop-puc-devops -n default get pod
+    ```
+
+    Permissões para todo o cluster exigem Roles e Bindings globais chamadas ClusterRoles e ClusterRolebindings
+
+    Aplique os manifestos de cluster presente no lab
+
+    ```bash
+    kubectl apply -f lab9/cluster-role-pod-reader.yaml
+    kubectl apply -f lab9/cluster-rolebinding-devops-role-binding.yaml
+    ```
+
+    Agora as operações com esse usuário tem permissão em todo o cluster
+
+    ```bash
+    kubectl --context docker-desktop-puc-devops  get pod
+    kubectl --context docker-desktop-puc-devops  get pod -A 
+    ```
