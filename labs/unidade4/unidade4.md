@@ -596,6 +596,20 @@ Aprender as várias formas de uso de um configmap em um pod
         ...
         ```
 
+        Existe a possibilidade de montagem de somente um arquivo no lugar da pasta, para isso utilize a diretiva subPath na montagem:
+
+        ```yaml
+        ...
+        ports:
+        - containerPort: 5000
+          name: http
+          volumeMounts:
+            - name: schemas
+              subPath: users.json
+              mountPath: /app/schemas/users.json
+        ...
+        ```
+
         Repare que o nome do volumeMount referencia o nome dado ao colume e não ao nome do configMap. Eles podem ser iguais mas não é obrigatório
 
     4. Aplique a mudança no deployment e vamos verificar o funcionamento da api:
