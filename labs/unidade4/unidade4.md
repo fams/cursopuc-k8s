@@ -499,7 +499,7 @@ Aprender as várias formas de uso de um configmap em um pod
 
         ```bash
         kubectl get pods |grep apitool
-        kubectl get endpoints apitool-svc -o wide
+        kubectl get endpoints apitool-service -o wide
         ```
 
    4. Verifique que a api está provendo a coleção users:
