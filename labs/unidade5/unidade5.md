@@ -143,6 +143,8 @@ Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenc
      kubectl delete -f lab7/pre-provisioned.yaml
     ```
 
+---
+
 ## Lab 8
 
 ### Exercício: Provisionando volumes de forma dinâmica
@@ -169,6 +171,8 @@ O `provisioner` define qual módulo de provisonamento instalado no cluster será
 O `volumeBindingMode` informa se o `PV` deve ser criado ao se ligar ao `PVC` ou quando o `POD` tentar montá-lo.
 O `reclaimPolicy` tem o mesmo papel que no `PV`
 Exitem outros campos disponíveis, como paramêters que irá passar argumentos para o provisionador.
+
+##### Passos
 
 1. Vamos agora provisionar um `PV` utilizando `PVC` com StorageClass
 
@@ -212,6 +216,8 @@ Exitem outros campos disponíveis, como paramêters que irá passar argumentos p
     kubectl delete -f lab8/pvc-dynamic.yaml
     ```
 
+---
+
 ## LAB 9
 
 ### Exercício: RBAC
@@ -223,7 +229,9 @@ Compreeender o funcionamento do controle de acesso RBAC no kubernetes
 ##### Introdução
 
 Controle de acesso pode ser dividido entree AuthN AuthZ, respectivamente autenticação e autorizaçao. Nesse lab faremos o foco no AuthZ, uma vez que existem diversas formas de autenticação no Kubernetes.
-Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instalado:
+Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instalado.
+
+##### Passos
 
 1. Vamos criar um usuário `puc-devops` com autenticação por certificado.
 
@@ -233,8 +241,8 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
         # Criando uma chave privada RSA 
         openssl genrsa -out puc-devops.pem
         
-        # Gerando um Certificate Signing Request 
-        openssl req -new -key puc-devops.pem -out puc-devops.csr -subj "/CN=puc-devops"
+        # Gerando um Certificate Signing Request. Na autenticação por mTLS, o CN do subject será lido como username no kubernetes e o Organization (O) será lido como grupo 
+        openssl req -new -key puc-devops.pem -out puc-devops.csr -subj "/CN=puc-devops/O=devs"
         
         # Gerando um manifesto de CSR no kubernetes
         cat <<EOF | kubectl apply -f - 
@@ -328,40 +336,97 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
 
         Também é possível definir o contexto default para o novo contexto, sem ter que passar o nome na linha de comando, porem será mais difícil fazer a configuração das pemissões.
 
-2. Iremos dar permissão para o novo usuário ler os pods, configmaps e deployments no namespace kube-system:
+2. Iremos dar permissão para o novo usuário ler os pods no namespace kube-system:
 
-    ```bash
-    # Crie a role pod-reader utilizando o manifesto presente no diretório lab9
-    kubectl apply -f lab9/pod-reader.yaml
-    
-    # Faça a ligação da role, que contem as permissões com o usuário que será autenticado através do certificado
-    kubectl apply -f lab9/devops-role-binding.yaml
-    ```
+    1. Criemos a role de permissão de acesso ler e listar os pods e também a rolebinding que permite o usuário puc-devops utilizá-la
 
-    Agora é possível ler os pods da namespace kube-system com o usuário puc-devops
+       ```bash
+       # Crie a role pod-reader utilizando o manifesto presente no diretório lab9
+       kubectl apply -f lab9/role-pod-reader.yaml
+       
+       # Faça a ligação da role, que contem as permissões com o usuário que será autenticado através do certificado
+       kubectl apply -f lab9/rolebinding-pod-reader-puc-devops.yaml
+       ```
 
-    ```bash
-    kubectl --context docker-desktop-puc-devops -n kube-system get pod
-    ```
+       Agora é possível ler os pods da namespace kube-system com o usuário puc-devops
 
-3. A permissão de role e role-binding vale somente para a namespace que os objetos foram criados:
+       ```bash
+       >     kubectl --context docker-desktop-puc-devops -n kube-system get pod
+       
+       NAME                                     READY   STATUS    RESTARTS         AGE
+       coredns-76f75df574-8hb5f                 1/1     Running   18 (2d22h ago)   131d
+       coredns-76f75df574-8tvpk                 1/1     Running   18 (2d22h ago)   131d
+       etcd-docker-desktop                      1/1     Running   18 (2d22h ago)   131d
+       kube-apiserver-docker-desktop            1/1     Running   18 (2d22h ago)   131d
+       kube-controller-manager-docker-desktop   1/1     Running   18 (2d22h ago)   131d
+       kube-proxy-jxcnp                         1/1     Running   18 (2d22h ago)   131d
+       kube-scheduler-docker-desktop            1/1     Running   19 (2d22h ago)   131d
+       storage-provisioner                      1/1     Running   38 (2d22h ago)   131d
+       vpnkit-controller                        1/1     Running   18 (2d22h ago)   131d    ```
+       ```
 
-    ```bash
-    kubectl --context docker-desktop-puc-devops -n default get pod
-    ```
+3. A permissão de role e role-binding vale somente para a namespace que os objetos foram criados. Vamos utilizar permissões que valem para todo o cluster
 
-    Permissões para todo o cluster exigem Roles e Bindings globais chamadas ClusterRoles e ClusterRolebindings
+    1. Testando o acesso em outro namespacee
 
-    Aplique os manifestos de cluster presente no lab
+       ```bash
+       > kubectl --context docker-desktop-puc-devops -n default get pod
+       Error from server (Forbidden): pods is forbidden: User "puc-devops" cannot list resource "pods" in API group "" in the namespace "default"
+       ```
 
-    ```bash
-    kubectl apply -f lab9/cluster-role-pod-reader.yaml
-    kubectl apply -f lab9/cluster-rolebinding-devops-role-binding.yaml
-    ```
+    2. Permissões para todo o cluster exigem Roles e Bindings globais chamadas ClusterRoles e ClusterRolebindings. Aplique os manifestos de cluster presente no lab
 
-    Agora as operações com esse usuário tem permissão em todo o cluster
+       ```bash
+       kubectl apply -f lab9/cluster-role-pod-reader.yaml
+       kubectl apply -f lab9/cluster-rolebinding-pod-reader-user-puc-devops.yaml
+       ```
 
-    ```bash
-    kubectl --context docker-desktop-puc-devops  get pod
-    kubectl --context docker-desktop-puc-devops  get pod -A 
-    ```
+       Agora as operações com esse usuário tem permissão de ler pods em todo o cluster
+
+       ```bash
+       > kubectl --context docker-desktop-puc-devops  get pod
+       NAME    READY   STATUS    RESTARTS   AGE
+       sleep   1/1     Running   0          26s
+
+       > kubectl --context docker-desktop-puc-devops  get pod -A
+       NAMESPACE     NAME                                     READY   STATUS    RESTARTS         AGE
+       default       sleep                                    1/1     Running   0                51s
+       kube-system   coredns-76f75df574-8hb5f                 1/1     Running   18 (2d22h ago)   131d
+       kube-system   coredns-76f75df574-8tvpk                 1/1     Running   18 (2d22h ago)   131d
+       kube-system   etcd-docker-desktop                      1/1     Running   18 (2d22h ago)   131d
+       kube-system   kube-apiserver-docker-desktop            1/1     Running   18 (2d22h ago)   131d
+       kube-system   kube-controller-manager-docker-desktop   1/1     Running   18 (2d22h ago)   131d
+       kube-system   kube-proxy-jxcnp                         1/1     Running   18 (2d22h ago)   131d
+       kube-system   kube-scheduler-docker-desktop            1/1     Running   19 (2d22h ago)   131d
+       kube-system   storage-provisioner                      1/1     Running   38 (2d22h ago)   131d
+       kube-system   vpnkit-controller                        1/1     Running   18 (2d22h ago)   131d
+       ```
+
+4. Vamos utilizar permissões de grupo
+
+   1. A permissão do usuário puc-devops se limita a ler os pods. Vamos tentar ler outro recurso
+
+       ```bash
+       > kubectl --context docker-desktop-puc-devops  get svc -A
+       Error from server (Forbidden): services is forbidden: User "puc-devops" cannot list resource "services" in API group "" at the cluster scope
+       ```
+
+   2. Vamos dar permissao para o Grupo `devs` ler serviços em todas as namespaces
+
+       ```bash
+       # Criando a ClusterRole
+       kubectl apply -f lab9/cluster-role-svc-reader.yaml
+       
+       #Criando a ClusterRoleBinding
+       kubectl apply -f lab9/cluster-rolebinding-svc-reader-group-devs.yaml
+       ```
+
+   3. Agora todos os usuários do grupo Devs, incluíndo o devops-puc, podem ver todos os serviços do cluster
+
+       ```bash
+       > kubectl --context docker-desktop-puc-devops get svc -A
+
+       NAMESPACE     NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)                  AGE
+       default       kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP                  131d
+       kube-system   kube-dns     ClusterIP   10.96.0.10   <none>        53/UDP,53/TCP,9153/TCP   131d
+       ```
