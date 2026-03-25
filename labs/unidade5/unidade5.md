@@ -1,6 +1,6 @@
 # LABS
 
-Esses exercícios permitem visualizar os objetos funcionando no kubernetes. Foram pensados com o kuberntes instalado pelo docker-desktop, requisito do curso
+Esses exercícios permitem visualizar os objetos funcionando no kubernetes. Foram pensados com o kubernetes instalado pelo k3d, requisito do curso
 
 Recomenda-se criar um diretório por lab para que os arquivos criados possam ficar separados
 
@@ -36,7 +36,13 @@ Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenc
         kubectl logs $(kubectl get pod -l app=alpine-reader -o name) -f
         ```
 
-    3. Esse provisionamento utilizando diretamente o tipo de volume, no caso hostPaht, não é recomendado e só é possível que dois pods possam acessá-lo porque os dois pods estão no mesmo host. Alguns tipos de volumes permitem que mais de um host possam acessar o mesmo disco, mas a forma de provisionamento será outro.
+    3. Esse provisionamento utilizando diretamente o tipo de volume, no caso hostPath, não é recomendado e só é possível que dois pods possam acessá-lo porque os dois pods estão no mesmo host. Alguns tipos de volumes permitem que mais de um host possam acessar o mesmo disco, mas a forma de provisionamento será outro.
+
+        > **k3d:** No k3d os nós são containers Docker, portanto o path `/var/lib/k8s-pvs/direct-volume` existe *dentro do container do nó*, não na máquina host. Para que o path seja acessível, crie o cluster com um volume montado:
+        >
+        > ```bash
+        > k3d cluster create lab --volume /tmp/k8s-pvs:/var/lib/k8s-pvs@server:*
+        > ```
 
 2. Agora vamos fazer o provisionamento direto utilizando o recurso de persistentVolume
 
@@ -155,17 +161,19 @@ Aprender a utilizar volumes provisionados dinâmicamente no kubernetes e passar 
 
 ##### Introdução
 
-O Provisionamento dinâmico depende do StorageClass, uma espécie de profile de criação de Volumes para o cluster. O storageClass pré-existente no docker-desktop é o HostPath:
+O Provisionamento dinâmico depende do StorageClass, uma espécie de profile de criação de Volumes para o cluster. O storageClass pré-existente no k3d é o `local-path`:
 
 ```yml
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-    name: hostpath
-provisioner: docker.io/hostpath
+  name: local-path
+provisioner: rancher.io/local-path
 reclaimPolicy: Delete
-volumeBindingMode: Immediate
+volumeBindingMode: WaitForFirstConsumer
 ```
+
+> **Atenção:** O `volumeBindingMode: WaitForFirstConsumer` significa que o `PV` só será criado quando um `Pod` tentar montar o `PVC`, e não no momento em que o `PVC` é criado.
 
 O `provisioner` define qual módulo de provisonamento instalado no cluster será utilizado. Hoje em dia os povisionadores utilizam majoritariamente o CSI (Container Storage Interface) que podem ser instalados de terceiros
 O `volumeBindingMode` informa se o `PV` deve ser criado ao se ligar ao `PVC` ou quando o `POD` tentar montá-lo.
@@ -268,8 +276,8 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
 
         ```bash
         certificatesigningrequest.certificates.k8s.io/puc-devops created
-        NAME         AGE   SIGNERNAME                            REQUESTOR            REQUESTEDDURATION   CONDITION
-        puc-devops   0s    kubernetes.io/kube-apiserver-client   docker-for-desktop   24h                 Pending
+        NAME         AGE   SIGNERNAME                            REQUESTOR   REQUESTEDDURATION   CONDITION
+        puc-devops   0s    kubernetes.io/kube-apiserver-client   k3d-lab     24h                 Pending
         ```
 
    2. Obtento o certificado e configurando o usuário:
@@ -283,8 +291,8 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
         ```
 
         ```bash
-        NAME         AGE   SIGNERNAME                            REQUESTOR            REQUESTEDDURATION   CONDITION
-        puc-devops   45s   kubernetes.io/kube-apiserver-client   docker-for-desktop   24h                 Approved,Issued        
+        NAME         AGE   SIGNERNAME                            REQUESTOR   REQUESTEDDURATION   CONDITION
+        puc-devops   45s   kubernetes.io/kube-apiserver-client   k3d-lab     24h                 Approved,Issued        
         ```
 
         ```bash
@@ -309,29 +317,29 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
         # Obtendo o contexto. Contexto é uam configuração de acesso ao kubernets que possui os dados de acesso à API e os dados de autenticação.Cluster + User
         kubectl config view -o jsonpath='{.current-context}'
         # No meu caso:
-        "docker-desktop"
-        
-        # Obtendo os dados do contexto 
-        kubectl config view -o jsonpath='{.contexts[?(@.name =="docker-desktop")]}' | jq
-        
+        "k3d-lab"
+
+        # Obtendo os dados do contexto
+        kubectl config view -o jsonpath='{.contexts[?(@.name =="k3d-lab")]}' | jq
+
         {
-          "name": "docker-desktop",
+          "name": "k3d-lab",
           "context": {
-            "cluster": "docker-desktop",
-            "user": "docker-desktop"
+            "cluster": "k3d-lab",
+            "user": "admin@k3d-lab"
           }
         }
-        
+
         # Criando um contexto com o novo usuário com o cluster do contexto atual
-        kubectl config set-context docker-desktop-puc-devops --cluster=docker-desktop --user=puc-devops
-      
-        kubectl config view -o jsonpath='{.contexts[?(@.name =="docker-desktop-puc-devops")]}'
+        kubectl config set-context k3d-lab-puc-devops --cluster=k3d-lab --user=puc-devops
+
+        kubectl config view -o jsonpath='{.contexts[?(@.name =="k3d-lab-puc-devops")]}'
         ```
 
         Agora você pode fazer chamadas para o cluster com o novo usuário, mas esse novo usuário não tem nenhuma permissão:
 
         ```bash
-        kubectl --context docker-desktopo-puc-devops get pod
+        kubectl --context k3d-lab-puc-devops get pod
         ```
 
         Também é possível definir o contexto default para o novo contexto, sem ter que passar o nome na linha de comando, porem será mais difícil fazer a configuração das pemissões.
@@ -351,18 +359,12 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
        Agora é possível ler os pods da namespace kube-system com o usuário puc-devops
 
        ```bash
-       >     kubectl --context docker-desktop-puc-devops -n kube-system get pod
-       
-       NAME                                     READY   STATUS    RESTARTS         AGE
-       coredns-76f75df574-8hb5f                 1/1     Running   18 (2d22h ago)   131d
-       coredns-76f75df574-8tvpk                 1/1     Running   18 (2d22h ago)   131d
-       etcd-docker-desktop                      1/1     Running   18 (2d22h ago)   131d
-       kube-apiserver-docker-desktop            1/1     Running   18 (2d22h ago)   131d
-       kube-controller-manager-docker-desktop   1/1     Running   18 (2d22h ago)   131d
-       kube-proxy-jxcnp                         1/1     Running   18 (2d22h ago)   131d
-       kube-scheduler-docker-desktop            1/1     Running   19 (2d22h ago)   131d
-       storage-provisioner                      1/1     Running   38 (2d22h ago)   131d
-       vpnkit-controller                        1/1     Running   18 (2d22h ago)   131d    ```
+       >     kubectl --context k3d-lab-puc-devops -n kube-system get pod
+
+       NAME                                      READY   STATUS    RESTARTS   AGE
+       coredns-6799fbcd5-xxxxx                   1/1     Running   0          5m
+       local-path-provisioner-6c86858495-xxxxx   1/1     Running   0          5m
+       metrics-server-54fd9b65b-xxxxx            1/1     Running   0          5m
        ```
 
 3. A permissão de role e role-binding vale somente para a namespace que os objetos foram criados. Vamos utilizar permissões que valem para todo o cluster
@@ -370,7 +372,7 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
     1. Testando o acesso em outro namespacee
 
        ```bash
-       > kubectl --context docker-desktop-puc-devops -n default get pod
+       > kubectl --context k3d-lab-puc-devops -n default get pod
        Error from server (Forbidden): pods is forbidden: User "puc-devops" cannot list resource "pods" in API group "" in the namespace "default"
        ```
 
@@ -384,22 +386,16 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
        Agora as operações com esse usuário tem permissão de ler pods em todo o cluster
 
        ```bash
-       > kubectl --context docker-desktop-puc-devops  get pod
+       > kubectl --context k3d-lab-puc-devops  get pod
        NAME    READY   STATUS    RESTARTS   AGE
        sleep   1/1     Running   0          26s
 
-       > kubectl --context docker-desktop-puc-devops  get pod -A
-       NAMESPACE     NAME                                     READY   STATUS    RESTARTS         AGE
-       default       sleep                                    1/1     Running   0                51s
-       kube-system   coredns-76f75df574-8hb5f                 1/1     Running   18 (2d22h ago)   131d
-       kube-system   coredns-76f75df574-8tvpk                 1/1     Running   18 (2d22h ago)   131d
-       kube-system   etcd-docker-desktop                      1/1     Running   18 (2d22h ago)   131d
-       kube-system   kube-apiserver-docker-desktop            1/1     Running   18 (2d22h ago)   131d
-       kube-system   kube-controller-manager-docker-desktop   1/1     Running   18 (2d22h ago)   131d
-       kube-system   kube-proxy-jxcnp                         1/1     Running   18 (2d22h ago)   131d
-       kube-system   kube-scheduler-docker-desktop            1/1     Running   19 (2d22h ago)   131d
-       kube-system   storage-provisioner                      1/1     Running   38 (2d22h ago)   131d
-       kube-system   vpnkit-controller                        1/1     Running   18 (2d22h ago)   131d
+       > kubectl --context k3d-lab-puc-devops  get pod -A
+       NAMESPACE     NAME                                      READY   STATUS    RESTARTS   AGE
+       default       sleep                                     1/1     Running   0          51s
+       kube-system   coredns-6799fbcd5-xxxxx                   1/1     Running   0          5m
+       kube-system   local-path-provisioner-6c86858495-xxxxx   1/1     Running   0          5m
+       kube-system   metrics-server-54fd9b65b-xxxxx            1/1     Running   0          5m
        ```
 
 4. Vamos utilizar permissões de grupo
@@ -407,7 +403,7 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
    1. A permissão do usuário puc-devops se limita a ler os pods. Vamos tentar ler outro recurso
 
        ```bash
-       > kubectl --context docker-desktop-puc-devops  get svc -A
+       > kubectl --context k3d-lab-puc-devops  get svc -A
        Error from server (Forbidden): services is forbidden: User "puc-devops" cannot list resource "services" in API group "" at the cluster scope
        ```
 
@@ -424,7 +420,7 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
    3. Agora todos os usuários do grupo Devs, incluíndo o devops-puc, podem ver todos os serviços do cluster
 
        ```bash
-       > kubectl --context docker-desktop-puc-devops get svc -A
+       > kubectl --context k3d-lab-puc-devops get svc -A
 
        NAMESPACE     NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)                  AGE
        default       kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP                  131d
