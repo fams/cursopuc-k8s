@@ -124,7 +124,7 @@ Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenc
         ```bash
         kubectl apply -f lab7/writer-pvc.yaml
         kubectl get pod -w
-        kubectl apply -f lab6/reader-pvc.yaml
+        kubectl apply -f lab7/reader-pvc.yaml
         ```
 
     5. Verifique o funcionamento dos pods reader e writer utilizando o volume com o `PVC`:
@@ -183,7 +183,7 @@ Exitem outros campos disponíveis, como paramêters que irá passar argumentos p
     1. Aplique o manifesto do `PVC`:
 
         ```bash
-        kubectl apply -f lab8/pvc-sc.yaml
+        kubectl apply -f lab8/pvc-dynamic.yaml
         kubectl get pvc dynamic-claim
         ```
 
@@ -349,7 +349,7 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
        kubectl apply -f lab9/role-pod-reader.yaml
        
        # Faça a ligação da role, que contem as permissões com o usuário que será autenticado através do certificado
-       kubectl apply -f lab9/rolebinding-pod-reader-puc-devops.yaml
+       kubectl apply -f lab9/rolebinding-pod-reader-user-puc-devops.yaml
        ```
 
        Agora é possível ler os pods da namespace kube-system com o usuário puc-devops
