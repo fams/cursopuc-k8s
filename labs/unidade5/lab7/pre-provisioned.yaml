@@ -9,7 +9,17 @@ spec:
     storage: 1Gi
   hostPath:
     path: /var/lib/k8s-pvs/manual-pv-1
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k3d-lab-agent-0
   persistentVolumeReclaimPolicy: Delete
+  storageClassName: ""
   volumeMode: Filesystem
 
 ---
@@ -25,7 +35,17 @@ spec:
     storage: 2Gi
   hostPath:
     path: /var/lib/k8s-pvs/manual-pv-2
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k3d-lab-agent-0
   persistentVolumeReclaimPolicy: Delete
+  storageClassName: ""
   volumeMode: Filesystem
 
 ---

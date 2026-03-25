@@ -318,17 +318,17 @@ Criar um serviço `ClusterIP` para o `Deployment` criado anteriormente, verifica
       kubectl get pods -l app=myapp
       ```
 
-   2. Teste a conectividade com o serviço, mas atenção! O nome `my-svc` só é resolvivel dentro do cluster. Ele é provido pelo kube-dns ou core-dns.
+   2. Teste a conectividade com o serviço, mas atenção! O nome `my-svc` só é resolvivel dentro do cluster. Ele é provido pelo kube-dns ou core-dns. Use um pod temporário com curl para testar:
 
       ```bash
-      kubectl exec -it <pod-name> -- curl my-svc
+      kubectl run curl-test --image=curlimages/curl --rm -it --restart=Never -- curl http://my-svc:8000
       ```
 
    3. Teste o aceesso ao serviço pela sua máquina utilizando o port-forward. O Comnando port-forward te permite contectar-se a uma porta sendo ouvida no cluster, por um pod ou serviço, utilizando uma porta local como ponte
 
       ```bash
-      kubectl port-forward svc/my-svc 8080:8080 &
-      curl http://localhost:8080
+      kubectl port-forward svc/my-svc 8000:8000 &
+      curl http://localhost:8000
       ```
 
 
@@ -682,4 +682,5 @@ Aprender as várias formas de uso de um configmap em um pod
     kubectl delete deployment apitool
     kubectl delete statefulset mongodb
     kubectl delete configmap apitool-conf apitool-schemas
+    kubectl delete pvc mongo-persistent-storage-mongodb-0
     ```

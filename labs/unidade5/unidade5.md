@@ -38,11 +38,7 @@ Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenc
 
     3. Esse provisionamento utilizando diretamente o tipo de volume, no caso hostPath, não é recomendado e só é possível que dois pods possam acessá-lo porque os dois pods estão no mesmo host. Alguns tipos de volumes permitem que mais de um host possam acessar o mesmo disco, mas a forma de provisionamento será outro.
 
-        > **k3d:** No k3d os nós são containers Docker, portanto o path `/var/lib/k8s-pvs/direct-volume` existe *dentro do container do nó*, não na máquina host. Para que o path seja acessível, crie o cluster com um volume montado:
-        >
-        > ```bash
-        > k3d cluster create lab --volume /tmp/k8s-pvs:/var/lib/k8s-pvs@server:*
-        > ```
+        > **k3d:** Os manifestos do lab7 já incluem `nodeSelector: kubernetes.io/hostname: k3d-lab-agent-0` nos deployments writer e reader, garantindo que ambos caiam no mesmo nó. O `type: DirectoryOrCreate` faz o kubelet criar o diretório automaticamente no primeiro uso.
 
 2. Agora vamos fazer o provisionamento direto utilizando o recurso de persistentVolume
 

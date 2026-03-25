@@ -4,13 +4,13 @@ Esses exercícios permitem visualizar os objetos funcionando no kubernetes. Fora
 
 ## Setup do cluster
 
-Instale o [k3d](https://k3d.io) e crie o cluster com o volume necessário para os labs de armazenamento:
+Instale o [k3d](https://k3d.io) e crie o cluster:
 
 ```bash
-k3d cluster create lab --volume /tmp/k8s-pvs:/var/lib/k8s-pvs@server:*
+k3d cluster create lab
 ```
 
-O contexto do kubectl será configurado automaticamente como `k3d-lab`.
+O contexto do kubectl será configurado automaticamente como `k3d-lab`. Os labs de armazenamento usam `type: DirectoryOrCreate` e `nodeAffinity` para que os diretórios sejam criados automaticamente nos nós sem configuração adicional.
 
 Recomenda-se criar um diretório por lab para que os arquivos criados possam ficar separados
 
