@@ -1,6 +1,16 @@
 # Laboratórios do curso K8S
 
-Esses exercícios permitem visualizar os objetos funcionando no kubernetes. Foram pensados com o kuberntes instalado pelo docker-desktop, requisito do curso
+Esses exercícios permitem visualizar os objetos funcionando no kubernetes. Foram pensados com o kubernetes instalado pelo k3d, requisito do curso
+
+## Setup do cluster
+
+Instale o [k3d](https://k3d.io) e crie o cluster:
+
+```bash
+k3d cluster create lab
+```
+
+O contexto do kubectl será configurado automaticamente como `k3d-lab`. Os labs de armazenamento usam `type: DirectoryOrCreate` e `nodeAffinity` para que os diretórios sejam criados automaticamente nos nós sem configuração adicional.
 
 Recomenda-se criar um diretório por lab para que os arquivos criados possam ficar separados
 

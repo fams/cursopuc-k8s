@@ -12,6 +12,8 @@ spec:
       labels:
         app: alpine-writer
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: k3d-lab-agent-0
       containers:
       - name: alpine-writer
         image: alpine

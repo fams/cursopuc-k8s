@@ -12,6 +12,8 @@ spec:
       labels:
         app: alpine-reader
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: k3d-lab-agent-0
       containers:
       - name: alpine-reader
         image: alpine
