@@ -1,0 +1,44 @@
+# Substituto controlável da reviews-v2 real: fams/chaos-http é um servidor
+# HTTP minúsculo (https://github.com/fams/chaos-http) cujo código de
+# resposta muda em tempo real via "curl .../control?httpCode=500", sem
+# nunca deixar de responder /health e /ready — ou seja, fica Ready de
+# verdade no Kubernetes o tempo todo, só a rota que o productpage chama é
+# que passa a falhar quando a gente manda.
+#
+# Repare no rótulo "app: reviews" (o mesmo de reviews-v1/v3): é ele que o
+# Service "reviews" usa como seletor, então o chaos-v2 entra
+# automaticamente no mesmo pool de tráfego, sem precisar de nenhum
+# VirtualService apontando pra ele.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: reviews, chaos-control: chaos-v2}
+  template:
+    metadata:
+      labels: {app: reviews, chaos-control: chaos-v2}
+    spec:
+      containers:
+        - name: chaos-v2
+          image: fams/chaos-http:1.1.0
+          env:
+            - {name: PORT, value: "9080"}   # mesma porta do reviews real
+          ports:
+            - {containerPort: 9080}
+          readinessProbe: {httpGet: {path: /ready, port: 9080}, periodSeconds: 3}
+          livenessProbe: {httpGet: {path: /health, port: 9080}, periodSeconds: 5}
+---
+# Service SEPARADO, só pra controlar o chaos-v2 diretamente (sem passar
+# pelo round-robin do Service "reviews", que poderia mandar sua chamada de
+# controle pra v1 ou v3 por engano).
+apiVersion: v1
+kind: Service
+metadata:
+  name: chaos-v2-control
+spec:
+  selector: {chaos-control: chaos-v2}
+  ports:
+    - {port: 9080, targetPort: 9080}

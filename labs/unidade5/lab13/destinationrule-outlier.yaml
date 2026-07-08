@@ -1,0 +1,17 @@
+# DestinationRule com outlierDetection: ejeta do pool qualquer host que
+# acumule "consecutive5xxErrors" erros seguidos, deixando ele de fora por
+# "baseEjectionTime" antes de tentar de novo. Sem "subsets": esse exercício
+# não é sobre split por versão (isso é o Lab 11) — é sobre um host
+# individual, dentro do pool inteiro "app: reviews", que fica doente.
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: reviews
+spec:
+  host: reviews
+  trafficPolicy:
+    outlierDetection:
+      consecutive5xxErrors: 3      # <- ejeta depois de 3 erros seguidos
+      interval: 10s                # <- reavalia a cada 10s
+      baseEjectionTime: 30s        # <- fica de fora por 30s
+      maxEjectionPercent: 50       # <- nunca ejeta mais que 50% do pool
