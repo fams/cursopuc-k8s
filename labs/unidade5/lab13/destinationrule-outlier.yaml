@@ -1,17 +1,31 @@
 # DestinationRule com outlierDetection: ejeta do pool qualquer host que
 # acumule "consecutive5xxErrors" erros seguidos, deixando ele de fora por
-# "baseEjectionTime" antes de tentar de novo. Sem "subsets": esse exercício
-# não é sobre split por versão (isso é o Lab 11) — é sobre um host
-# individual, dentro do pool inteiro "app: reviews", que fica doente.
+# "baseEjectionTime" antes de tentar de novo.
+#
+# Isso só é observável de forma confiável contra um HOST ESPECÍFICO -- em
+# round-robin puro entre 3 réplicas (v1/v3/chaos-v2), 3 falhas SEGUIDAS na
+# mesma réplica é raro (~1/9 das janelas de 3 chamadas). Por isso este
+# DestinationRule define um subset "chaos" que isola só o chaos-v2 (rótulo
+# chaos-control: chaos-v2) -- o VirtualService do lab13/virtualservice-
+# chaos-only.yaml manda 100% do tráfego de "reviews" pra esse subset
+# durante o exercício, garantindo que toda chamada bate no mesmo host.
+#
+# maxEjectionPercent: 100 é necessário aqui porque o subset "chaos" só tem
+# 1 host -- com o padrão de 50%, o Envoy nunca ejetaria (ejetar o único
+# host seria "ejetar 100% do pool", acima do limite).
 apiVersion: networking.istio.io/v1
 kind: DestinationRule
 metadata:
   name: reviews
 spec:
   host: reviews
-  trafficPolicy:
-    outlierDetection:
-      consecutive5xxErrors: 3      # <- ejeta depois de 3 erros seguidos
-      interval: 10s                # <- reavalia a cada 10s
-      baseEjectionTime: 30s        # <- fica de fora por 30s
-      maxEjectionPercent: 50       # <- nunca ejeta mais que 50% do pool
+  subsets:
+    - name: chaos
+      labels:
+        chaos-control: chaos-v2
+      trafficPolicy:
+        outlierDetection:
+          consecutive5xxErrors: 3      # <- ejeta depois de 3 erros seguidos
+          interval: 10s                # <- reavalia a cada 10s
+          baseEjectionTime: 30s        # <- fica de fora por 30s
+          maxEjectionPercent: 100      # <- subset de host único: precisa poder ejetar 100%
