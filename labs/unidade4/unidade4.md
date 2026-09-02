@@ -280,6 +280,13 @@ Criar e gerenciar um `Deployment` no Kubernetes, verificar seus detalhes, reinic
       kubectl get rs
       ```
 
+      > **Nota:** repare que o `DESIRED` do ReplicaSet volta pra 5 sozinho em poucos segundos,
+      > mesmo depois do `scale` ter rodado sem erro. Isso não é falha do comando: o `Deployment`
+      > continua com `replicas: 5` e o *controller* dele reconcilia o `ReplicaSet` de volta pro
+      > valor que o `Deployment` quer, sempre que percebe uma divergência -- é exatamente por
+      > isso que escalar o `ReplicaSet` diretamente é "não recomendado" quando ele ainda pertence
+      > a um `Deployment` ativo.
+
 ---
 
 ## Lab 4
@@ -294,7 +301,7 @@ Criar um serviço `ClusterIP` para o `Deployment` criado anteriormente, verifica
       ```bash
         kubectl create service clusterip my-svc --tcp '8000:8000' -o yaml --dry-run=client | \
         kubectl set selector --local -f - 'app=myapp,version=v1.0' -o yaml | \
-        kubectl create service -f -
+        kubectl create -f -
       ```
 
    2. Verifique o serviço e veja os detalhees:
@@ -681,6 +688,7 @@ Aprender as várias formas de uso de um configmap em um pod
     ```bash
     kubectl delete deployment apitool
     kubectl delete statefulset mongodb
+    kubectl delete svc apitool-service mongodb
     kubectl delete configmap apitool-conf apitool-schemas
     kubectl delete pvc mongo-persistent-storage-mongodb-0
     ```
