@@ -6,13 +6,9 @@ Recomenda-se criar um diretório por lab para que os arquivos criados possam fic
 
 Os fontes desses labs e também outros arquivos estarão no <https://github.com/fams/cursopuc-k8s>
 
-## Lab 7
+## LAB 7
 
-### Exercício: Criando um Persistent Volume estaticamente provisionado
-
-#### Objetivo
-
-Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenciamento de volumes
+### Objetivo: Criando um Persistent Volume estaticamente provisionado. Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenciamento de volumes.
 
 1. Vamos criar dois pods um gravando e outro lendo no mesmo disco via provisionamento direto
 
@@ -52,7 +48,7 @@ Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenc
 
         Você vai ver algo parecido com isso:
 
-        ```text
+        ```output
         NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM                                        STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
         manual-pv-1g                               1Gi        RWO            Delete           Available                                                               <unset>                          160m
         manual-pv-2g                               2Gi        RWO            Delete           Available                                                               <unset>                          160m
@@ -67,13 +63,15 @@ Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenc
 
     3. Verifique que os PVs foram criados, repare nas colunas STATUS e CLAIM
 
-        ```text
+        ```output
         NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM                                        STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
         manual-pv-1g                               1Gi        RWO            Delete           Available                                                               <unset>                          161m
         manual-pv-2g                               2Gi        RWO            Delete           Bound       default/static-claim                                        <unset>                          161m
         ```
 
-        Existindo Discos pré-provisionados com as mesmas características do PVC, o kubernetes irá ligar o PVC a ele.
+        Existindo Discos pré-provisionados com as mesmas características do PVC, o kubernetes irá ligar o PVC a ele. As duas tabelas abaixo são só pra comparação lado a lado -- não precisam ser reaplicadas, o PV e o PVC já foram criados nos passos anteriores.
+
+        <!--send:off-->
 
         <table>
         <tr><th>PV</th><th>PVC</th></tr>
@@ -147,38 +145,29 @@ Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenc
 
 ---
 
-## Lab 8
+## LAB 8
 
-### Exercício: Provisionando volumes de forma dinâmica
+### Objetivo: Provisionando volumes de forma dinâmica. Aprender a utilizar volumes provisionados dinâmicamente no kubernetes e passar pelas fases do gerenciamento de volumes.
 
-#### Objetivo
+1. Entenda o StorageClass: o provisionamento dinâmico depende dele, uma espécie de perfil de criação de Volumes para o cluster. O StorageClass pré-existente no k3d é o `local-path`:
 
-Aprender a utilizar volumes provisionados dinâmicamente no kubernetes e passar pelas fases do gerenciamento de volumes.
+    <!--send:off-->
 
-##### Introdução
+    ```yaml
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: local-path
+    provisioner: rancher.io/local-path
+    reclaimPolicy: Delete
+    volumeBindingMode: WaitForFirstConsumer
+    ```
 
-O Provisionamento dinâmico depende do StorageClass, uma espécie de profile de criação de Volumes para o cluster. O storageClass pré-existente no k3d é o `local-path`:
+    > **Atenção:** O `volumeBindingMode: WaitForFirstConsumer` significa que o `PV` só será criado quando um `Pod` tentar montar o `PVC`, e não no momento em que o `PVC` é criado.
 
-```yml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: local-path
-provisioner: rancher.io/local-path
-reclaimPolicy: Delete
-volumeBindingMode: WaitForFirstConsumer
-```
+2. Entenda os campos do StorageClass: o `provisioner` define qual módulo de provisionamento instalado no cluster será utilizado (hoje em dia majoritariamente via CSI, Container Storage Interface, que pode ser de terceiros); o `volumeBindingMode` informa se o `PV` deve ser criado ao se ligar ao `PVC` ou quando o `POD` tentar montá-lo; o `reclaimPolicy` tem o mesmo papel que no `PV`. Existem outros campos disponíveis, como parâmetros que passam argumentos para o provisionador.
 
-> **Atenção:** O `volumeBindingMode: WaitForFirstConsumer` significa que o `PV` só será criado quando um `Pod` tentar montar o `PVC`, e não no momento em que o `PVC` é criado.
-
-O `provisioner` define qual módulo de provisonamento instalado no cluster será utilizado. Hoje em dia os povisionadores utilizam majoritariamente o CSI (Container Storage Interface) que podem ser instalados de terceiros
-O `volumeBindingMode` informa se o `PV` deve ser criado ao se ligar ao `PVC` ou quando o `POD` tentar montá-lo.
-O `reclaimPolicy` tem o mesmo papel que no `PV`
-Exitem outros campos disponíveis, como paramêters que irá passar argumentos para o provisionador.
-
-##### Passos
-
-1. Vamos agora provisionar um `PV` utilizando `PVC` com StorageClass
+3. Vamos agora provisionar um `PV` utilizando `PVC` com StorageClass
 
     1. Aplique o manifesto do `PVC`:
 
@@ -193,7 +182,7 @@ Exitem outros campos disponíveis, como paramêters que irá passar argumentos p
         kubectl get pv
         ```
 
-2. Podemos agora criar os `deployments` writer e reader utilizando esse `PVC`
+4. Podemos agora criar os `deployments` writer e reader utilizando esse `PVC`
 
     1. Agora vamos montar os pods reader e writer usando o PVC:
 
@@ -212,7 +201,7 @@ Exitem outros campos disponíveis, como paramêters que irá passar argumentos p
         kubectl logs $(kubectl get pod -l app=alpine-reader -o name) -f
         ```
 
-3. Limpeza:
+5. Limpeza:
 
     ```bash
     kubectl delete -f lab8/writer-pvc.yaml
@@ -224,18 +213,7 @@ Exitem outros campos disponíveis, como paramêters que irá passar argumentos p
 
 ## LAB 9
 
-### Exercício: RBAC
-
-#### Objetivo
-
-Compreeender o funcionamento do controle de acesso RBAC no kubernetes
-
-##### Introdução
-
-Controle de acesso pode ser dividido entree AuthN AuthZ, respectivamente autenticação e autorizaçao. Nesse lab faremos o foco no AuthZ, uma vez que existem diversas formas de autenticação no Kubernetes.
-Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instalado.
-
-##### Passos
+### Objetivo: RBAC. Compreender o funcionamento do controle de acesso RBAC no kubernetes -- o controle de acesso pode ser dividido entre AuthN e AuthZ (autenticação e autorização); o foco aqui é AuthZ, já que existem diversas formas de autenticação no Kubernetes. Pra melhor visualização das saídas, recomenda-se ter o comando `jq` instalado.
 
 1. Vamos criar um usuário `puc-devops` com autenticação por certificado.
 
@@ -270,7 +248,7 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
 
         Resultado será algo assim
 
-        ```bash
+        ```output
         certificatesigningrequest.certificates.k8s.io/puc-devops created
         NAME         AGE   SIGNERNAME                            REQUESTOR   REQUESTEDDURATION   CONDITION
         puc-devops   0s    kubernetes.io/kube-apiserver-client   k3d-lab     24h                 Pending
@@ -286,7 +264,7 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
         kubectl get csr puc-devops
         ```
 
-        ```bash
+        ```output
         NAME         AGE   SIGNERNAME                            REQUESTOR   REQUESTEDDURATION   CONDITION
         puc-devops   45s   kubernetes.io/kube-apiserver-client   k3d-lab     24h                 Approved,Issued        
         ```
@@ -355,8 +333,10 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
        Agora é possível ler os pods da namespace kube-system com o usuário puc-devops
 
        ```bash
-       >     kubectl --context k3d-lab-puc-devops -n kube-system get pod
+       kubectl --context k3d-lab-puc-devops -n kube-system get pod
+       ```
 
+       ```output
        NAME                                      READY   STATUS    RESTARTS   AGE
        coredns-6799fbcd5-xxxxx                   1/1     Running   0          5m
        local-path-provisioner-6c86858495-xxxxx   1/1     Running   0          5m
@@ -368,7 +348,10 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
     1. Testando o acesso em outro namespacee
 
        ```bash
-       > kubectl --context k3d-lab-puc-devops -n default get pod
+       kubectl --context k3d-lab-puc-devops -n default get pod
+       ```
+
+       ```output
        Error from server (Forbidden): pods is forbidden: User "puc-devops" cannot list resource "pods" in API group "" in the namespace "default"
        ```
 
@@ -382,11 +365,19 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
        Agora as operações com esse usuário tem permissão de ler pods em todo o cluster
 
        ```bash
-       > kubectl --context k3d-lab-puc-devops  get pod
+       kubectl --context k3d-lab-puc-devops get pod
+       ```
+
+       ```output
        NAME    READY   STATUS    RESTARTS   AGE
        sleep   1/1     Running   0          26s
+       ```
 
-       > kubectl --context k3d-lab-puc-devops  get pod -A
+       ```bash
+       kubectl --context k3d-lab-puc-devops get pod -A
+       ```
+
+       ```output
        NAMESPACE     NAME                                      READY   STATUS    RESTARTS   AGE
        default       sleep                                     1/1     Running   0          51s
        kube-system   coredns-6799fbcd5-xxxxx                   1/1     Running   0          5m
@@ -399,7 +390,10 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
    1. A permissão do usuário puc-devops se limita a ler os pods. Vamos tentar ler outro recurso
 
        ```bash
-       > kubectl --context k3d-lab-puc-devops  get svc -A
+       kubectl --context k3d-lab-puc-devops get svc -A
+       ```
+
+       ```output
        Error from server (Forbidden): services is forbidden: User "puc-devops" cannot list resource "services" in API group "" at the cluster scope
        ```
 
@@ -416,58 +410,65 @@ Para melhor visualizaçao das saídas, recomendo que o comando jq esteja instala
    3. Agora todos os usuários do grupo Devs, incluíndo o devops-puc, podem ver todos os serviços do cluster
 
        ```bash
-       > kubectl --context k3d-lab-puc-devops get svc -A
+       kubectl --context k3d-lab-puc-devops get svc -A
+       ```
 
+       ```output
        NAMESPACE     NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)                  AGE
        default       kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP                  131d
        kube-system   kube-dns     ClusterIP   10.96.0.10   <none>        53/UDP,53/TCP,9153/TCP   131d
        ```
 
----
+5. Limpeza:
 
-## Antes do Lab 10: subindo o cluster do Istio
-
-Os Labs 10 a 14 usam um cluster k3d próprio, separado do que os Labs 7-9 usam — o Istio tem requisitos de porta e recursos específicos.
-
-```bash
-# Cria o cluster k3d com uma porta exposta para o ingress gateway do Istio.
-# --disable=traefik: o k3s vem com o Traefik habilitado por padrão como
-# ingress controller; sem desabilitá-lo, ele ocupa a porta 80 do load
-# balancer antes do Istio conseguir, e o ingress gateway do Istio nunca
-# fica acessível.
-k3d cluster create istio-lab --k3s-arg "--disable=traefik@server:*" --api-port 6550 -p "8080:80@loadbalancer" --agents 2
-
-kubectl get nodes
-```
-
-```text
-NAME                       STATUS   ROLES                  AGE   VERSION
-k3d-istio-lab-server-0     Ready    control-plane,master   30s   v1.30.x+k3s1
-k3d-istio-lab-agent-0      Ready    <none>                 25s   v1.30.x+k3s1
-k3d-istio-lab-agent-1      Ready    <none>                 25s   v1.30.x+k3s1
-```
-
-Baixe o `istioctl`:
-
-```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.30.2 sh -
-export PATH="$PWD/istio-1.30.2/bin:$PATH"
-istioctl version --remote=false
-```
-
-Todos os labs a seguir usam o [Bookinfo](https://istio.io/latest/docs/examples/bookinfo/), a aplicação de exemplo oficial do próprio projeto Istio (`reviews-v1`, `reviews-v2`, `reviews-v3`).
+    ```bash
+    kubectl delete -f lab9/cluster-rolebinding-svc-reader-group-devs.yaml
+    kubectl delete -f lab9/cluster-role-svc-reader.yaml
+    kubectl delete -f lab9/cluster-rolebinding-pod-reader-user-puc-devops.yaml
+    kubectl delete -f lab9/cluster-role-pod-reader.yaml
+    kubectl delete -f lab9/rolebinding-pod-reader-user-puc-devops.yaml
+    kubectl delete -f lab9/role-pod-reader.yaml
+    kubectl delete csr puc-devops
+    kubectl config delete-context k3d-lab-puc-devops
+    kubectl config unset users.puc-devops
+    rm -f puc-devops.pem puc-devops.csr puc-devops.crt
+    ```
 
 ---
 
-## Lab 10
+## LAB 10
 
-### Exercício: Instalando o Istio no k3d e observando a injeção de sidecar
+<!--console:k8s-->
 
-#### Objetivo
+### Objetivo: Instalando o Istio no k3d e observando a injeção de sidecar. Instalar o Istio em modo sidecar, subir o Bookinfo e confirmar visualmente a diferença entre um pod com e sem sidecar.
 
-Instalar o Istio em modo sidecar, subir o Bookinfo e confirmar visualmente a diferença entre um pod com e sem sidecar.
+1. Suba o cluster k3d deste grupo de labs (10 a 14 usam um cluster próprio, separado do que os Labs 7-9 usam — o Istio tem requisitos de porta e recursos específicos), e baixe o `istioctl`
 
-1. Instale o Istio com o profile `demo` (inclui ingress gateway, adequado para lab)
+    ```bash
+    # Cria o cluster k3d com uma porta exposta para o ingress gateway do Istio.
+    # --disable=traefik: o k3s vem com o Traefik habilitado por padrão como
+    # ingress controller; sem desabilitá-lo, ele ocupa a porta 80 do load
+    # balancer antes do Istio conseguir, e o ingress gateway do Istio nunca
+    # fica acessível.
+    k3d cluster create istio-lab --k3s-arg "--disable=traefik@server:*" --api-port 6550 -p "8080:80@loadbalancer" --agents 2
+
+    kubectl get nodes
+
+    curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.30.2 sh -
+    export PATH="$PWD/istio-1.30.2/bin:$PATH"
+    istioctl version --remote=false
+    ```
+
+    ```output
+    NAME                       STATUS   ROLES                  AGE   VERSION
+    k3d-istio-lab-server-0     Ready    control-plane,master   30s   v1.30.x+k3s1
+    k3d-istio-lab-agent-0      Ready    <none>                 25s   v1.30.x+k3s1
+    k3d-istio-lab-agent-1      Ready    <none>                 25s   v1.30.x+k3s1
+    ```
+
+    Todos os labs a seguir usam o [Bookinfo](https://istio.io/latest/docs/examples/bookinfo/), a aplicação de exemplo oficial do próprio projeto Istio (`reviews-v1`, `reviews-v2`, `reviews-v3`).
+
+2. Instale o Istio com o profile `demo` (inclui ingress gateway, adequado para lab)
 
     ```bash
     istioctl install --set profile=demo -y
@@ -476,14 +477,14 @@ Instalar o Istio em modo sidecar, subir o Bookinfo e confirmar visualmente a dif
     kubectl get pod -n istio-system
     ```
 
-    ```text
+    ```output
     NAME                                    READY   STATUS    RESTARTS   AGE
     istio-egressgateway-6d8f9c9b7-abcde     1/1     Running   0          40s
     istio-ingressgateway-7f6b8d5c4-fghij     1/1     Running   0          40s
     istiod-5c7b9f8d6-klmno                  1/1     Running   0          55s
     ```
 
-2. Antes de fazer o deploy, habilite a injeção automática de sidecar no namespace `default`
+3. Antes de fazer o deploy, habilite a injeção automática de sidecar no namespace `default`
 
     ```bash
     kubectl label namespace default istio-injection=enabled
@@ -491,7 +492,7 @@ Instalar o Istio em modo sidecar, subir o Bookinfo e confirmar visualmente a dif
     kubectl get namespace -L istio-injection
     ```
 
-3. Suba o Bookinfo
+4. Suba o Bookinfo
 
     ```bash
     kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.30/samples/bookinfo/platform/kube/bookinfo.yaml
@@ -500,7 +501,7 @@ Instalar o Istio em modo sidecar, subir o Bookinfo e confirmar visualmente a dif
     # Espere todos ficarem 2/2 Running, depois CTRL+C
     ```
 
-    ```text
+    ```output
     NAME                              READY   STATUS    RESTARTS   AGE
     details-v1-...                    2/2     Running   0          25s
     productpage-v1-...                 2/2     Running   0          25s
@@ -512,7 +513,7 @@ Instalar o Istio em modo sidecar, subir o Bookinfo e confirmar visualmente a dif
 
     O `2/2` é o container da aplicação **e** o sidecar Envoy — o Modo Sidecar na prática.
 
-4. Compare agora com um pod **sem** injeção
+5. Compare agora com um pod **sem** injeção
 
     ```bash
     kubectl create namespace sem-mesh
@@ -522,14 +523,14 @@ Instalar o Istio em modo sidecar, subir o Bookinfo e confirmar visualmente a dif
     kubectl get pod -n sem-mesh
     ```
 
-    ```text
+    ```output
     NAME         READY   STATUS    RESTARTS   AGE
     debug-pod    1/1     Running   0          10s
     ```
 
     `1/1` em vez de `2/2` porque o namespace `sem-mesh` não tem o label `istio-injection=enabled` — o sintoma clássico de sidecar não injetado.
 
-5. Exponha o Bookinfo via ingress gateway e confirme o acesso
+6. Exponha o Bookinfo via ingress gateway e confirme o acesso
 
     ```bash
     kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.30/samples/bookinfo/networking/bookinfo-gateway.yaml
@@ -537,11 +538,11 @@ Instalar o Istio em modo sidecar, subir o Bookinfo e confirmar visualmente a dif
     curl -s http://localhost:8080/productpage | grep -o "<title>.*</title>"
     ```
 
-    ```text
+    ```output
     <title>Simple Bookstore App</title>
     ```
 
-6. Limpeza (opcional — os próximos labs reaproveitam esse Bookinfo)
+7. Limpeza (opcional — os próximos labs reaproveitam esse Bookinfo)
 
     ```bash
     kubectl delete namespace sem-mesh
@@ -549,13 +550,12 @@ Instalar o Istio em modo sidecar, subir o Bookinfo e confirmar visualmente a dif
 
 ---
 
-## Lab 11
+## LAB 11
 
-### Exercício: Traffic Management — canary com VirtualService e DestinationRule
+<!--console:k8s-->
+<!--continua:unidade5-lab10-->
 
-#### Objetivo
-
-Aplicar `DestinationRule` (define os subsets v1/v2/v3 por label) e `VirtualService` (decide o peso), e observar o split de tráfego 90/10 de verdade.
+### Objetivo: Traffic Management — canary com VirtualService e DestinationRule. Aplicar `DestinationRule` (define os subsets v1/v2/v3 por label) e `VirtualService` (decide o peso), e observar o split de tráfego 90/10 de verdade.
 
 > Pré-requisito: Lab 10 concluído (Bookinfo no ar).
 
@@ -567,7 +567,7 @@ Aplicar `DestinationRule` (define os subsets v1/v2/v3 por label) e `VirtualServi
     kubectl get destinationrule reviews -o yaml | grep -A2 "name: v"
     ```
 
-    ```text
+    ```output
     - name: v1
       labels:
         version: v1
@@ -644,7 +644,7 @@ Aplicar `DestinationRule` (define os subsets v1/v2/v3 por label) e `VirtualServi
     done | grep -o '"podname": "reviews-v[0-9]' | sort | uniq -c
     ```
 
-    ```text
+    ```output
      45 "podname": "reviews-v1
       5 "podname": "reviews-v3
     ```
@@ -661,13 +661,12 @@ Aplicar `DestinationRule` (define os subsets v1/v2/v3 por label) e `VirtualServi
 
 ---
 
-## Lab 12
+## LAB 12
 
-### Exercício: Segurança — mTLS (PeerAuthentication) e AuthorizationPolicy
+<!--console:k8s-->
+<!--continua:unidade5-lab10-->
 
-#### Objetivo
-
-Aplicar `PeerAuthentication` em modo `STRICT` e uma `AuthorizationPolicy` restringindo quem pode chamar o serviço `reviews`.
+### Objetivo: Segurança — mTLS (PeerAuthentication) e AuthorizationPolicy. Aplicar `PeerAuthentication` em modo `STRICT` e uma `AuthorizationPolicy` restringindo quem pode chamar o serviço `reviews`.
 
 > Pré-requisito: Lab 10 concluído (Bookinfo no ar).
 
@@ -678,7 +677,7 @@ Aplicar `PeerAuthentication` em modo `STRICT` e uma `AuthorizationPolicy` restri
     kubectl exec sniffer -- curl -s -o /dev/null -w "%{http_code}\n" http://reviews:9080/reviews/0
     ```
 
-    ```text
+    ```output
     200
     ```
 
@@ -706,7 +705,7 @@ Aplicar `PeerAuthentication` em modo `STRICT` e uma `AuthorizationPolicy` restri
     kubectl exec sniffer -- curl -s -o /dev/null -w "%{http_code}\n" --max-time 3 http://reviews:9080/reviews/0
     ```
 
-    ```text
+    ```output
     000
     ```
 
@@ -720,7 +719,7 @@ Aplicar `PeerAuthentication` em modo `STRICT` e uma `AuthorizationPolicy` restri
     kubectl exec sniffer -c sniffer -- curl -s -o /dev/null -w "%{http_code}\n" http://reviews:9080/reviews/0
     ```
 
-    ```text
+    ```output
     200
     ```
 
@@ -751,7 +750,7 @@ Aplicar `PeerAuthentication` em modo `STRICT` e uma `AuthorizationPolicy` restri
                 principals: ["cluster.local/ns/default/sa/bookinfo-productpage"]
     ```
 
-    ```text
+    ```output
     403
     ```
 
@@ -771,13 +770,12 @@ Aplicar `PeerAuthentication` em modo `STRICT` e uma `AuthorizationPolicy` restri
 
 ---
 
-## Lab 13
+## LAB 13
 
-### Exercício: Resiliência — outlier detection
+<!--console:k8s-->
+<!--continua:unidade5-lab10-->
 
-#### Objetivo
-
-Fazer uma réplica de `reviews` responder mal de propósito — continuando `Ready` o tempo todo — e observar os três momentos: saudável → ejetado → de volta ao pool.
+### Objetivo: Resiliência — outlier detection. Fazer uma réplica de `reviews` responder mal de propósito — continuando `Ready` o tempo todo — e observar os três momentos: saudável → ejetado → de volta ao pool.
 
 > Pré-requisito: Lab 10 concluído (Bookinfo no ar).
 
@@ -857,7 +855,7 @@ Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. 
     done; echo
     ```
 
-    ```text
+    ```output
     200 200 200 200 200 200 200 200 200 200
     ```
 
@@ -889,7 +887,7 @@ Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. 
       curl -s http://localhost:15000/clusters | grep "outbound|9080||reviews" | grep health_flags
     ```
 
-    ```text
+    ```output
     outbound|9080||reviews.default.svc.cluster.local::10.42.0.4:9080::health_flags::healthy
     outbound|9080||reviews.default.svc.cluster.local::10.42.0.5:9080::health_flags::healthy
     outbound|9080||reviews.default.svc.cluster.local::10.42.1.9:9080::health_flags::/failed_outlier_check
@@ -907,7 +905,7 @@ Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. 
     done; echo
     ```
 
-    ```text
+    ```output
     200 200 200 200 200 200 200 200 200 200
     ```
 
@@ -929,13 +927,12 @@ Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. 
 
 ---
 
-## Lab 14
+## LAB 14
 
-### Exercício: Troubleshooting — analyze, proxy-status e proxy-config
+<!--console:k8s-->
+<!--continua:unidade5-lab10-->
 
-#### Objetivo
-
-Introduzir dois problemas de propósito e usar `istioctl analyze`, `proxy-status` e `proxy-config` para encontrá-los, sem olhar a resposta antes.
+### Objetivo: Troubleshooting — analyze, proxy-status e proxy-config. Introduzir dois problemas de propósito e usar `istioctl analyze`, `proxy-status` e `proxy-config` para encontrá-los, sem olhar a resposta antes.
 
 > Pré-requisito: Lab 10 concluído (Bookinfo no ar).
 
@@ -967,7 +964,7 @@ Introduzir dois problemas de propósito e usar `istioctl analyze`, `proxy-status
     istioctl analyze
     ```
 
-    ```text
+    ```output
     Error [IST0101] (VirtualService default/reviews-quebrado) Referenced host+subset in destinationrule not found: "reviews+v9"
     Error: Analyzers found issues when analyzing namespace: default.
     ```
