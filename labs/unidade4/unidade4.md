@@ -8,11 +8,21 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 ## LAB 1
 
+<!--console:k8s-->
+
 ### Objetivo: Criação de Pods - Interativa e Declarativa. Criar um pod no Kubernetes com o nome `my-nginx` utilizando tanto o modo interativo (comandos diretos via CLI) quanto o modo declarativo (através de um arquivo YAML).
 
 ---
 
-1. Criação de um Pod - Modo Interativo
+1. Suba o cluster k3d deste grupo de labs (Labs 1 a 9 -- os Labs 10 a 14, de Istio, usam um cluster próprio, separado, criado no Lab 10)
+
+    ```bash
+    k3d cluster create lab --agents 1
+
+    kubectl get nodes
+    ```
+
+2. Criação de um Pod - Modo Interativo
 
       ```bash
         # Crie um pod de forma interativa chamado `my-nginx` usando a imagem `nginx`:  
@@ -25,7 +35,7 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
         kubectl logs my-nginx
       ```
 
-2. Criação de um Pod - Modo Declarativo
+3. Criação de um Pod - Modo Declarativo
    1. Crie um arquivo chamado `my-nginx-pod.yaml` com o seguinte conteúdo:
 
       ```yaml
@@ -49,7 +59,7 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
         kubectl get pods
       ```
 
-3. Limpeza
+4. Limpeza
 
     ```bash
     # Remova o pod criado de forma interativa:
@@ -62,6 +72,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 ---
 
 ## LAB 2
+
+<!--continua:unidade4-lab1-->
 
 ### Objetivo: Criar um pod com dois containers: um container principal executando o Nginx e um container sidecar executando BusyBox. Além disso, montar um `ConfigMap` como volume no pod.
 
@@ -148,6 +160,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 ---
 
 ## LAB 3
+
+<!--continua:unidade4-lab1-->
 
 ### Objetivo: Entender o `ReplicaSet` como o controller que garante um número fixo de réplicas de um Pod (e suas limitações), pra então criar e gerenciar um `Deployment` no Kubernetes -- verificar seus detalhes, reiniciar o rollout, monitorar o status e escalar o deployment e o replicaset.
 
@@ -354,6 +368,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 ## LAB 4
 
+<!--continua:unidade4-lab1-->
+
 ### Objetivo: Criar um serviço `ClusterIP` para o `Deployment` criado anteriormente, verificar seu funcionamento e gerenciar suas propriedades.
 
 1. Criação do Serviço
@@ -431,6 +447,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 ---
 
 ## LAB 5
+
+<!--continua:unidade4-lab1-->
 
 ### Objetivo: Criando ConfigMaps. Vimos como criar um configMap no primeiro Lab. Vamos aprender a criar e usá-los de outras formas.
 
@@ -542,6 +560,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 ---
 
 ## LAB 6
+
+<!--continua:unidade4-lab1-->
 
 ### Objetivo: Montando ConfigMaps. Aprender as várias formas de uso de um configmap em um pod.
 

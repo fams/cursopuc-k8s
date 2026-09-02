@@ -8,6 +8,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 ## LAB 7
 
+<!--continua:unidade4-lab1-->
+
 ### Objetivo: Criando um Persistent Volume estaticamente provisionado. Aprender a pré-provisionar volumes no kubernetes e passar pelas fases do gerenciamento de volumes.
 
 1. Vamos criar dois pods um gravando e outro lendo no mesmo disco via provisionamento direto
@@ -147,6 +149,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 ## LAB 8
 
+<!--continua:unidade4-lab1-->
+
 ### Objetivo: Provisionando volumes de forma dinâmica. Aprender a utilizar volumes provisionados dinâmicamente no kubernetes e passar pelas fases do gerenciamento de volumes.
 
 1. Entenda o StorageClass: o provisionamento dinâmico depende dele, uma espécie de perfil de criação de Volumes para o cluster. O StorageClass pré-existente no k3d é o `local-path`:
@@ -212,6 +216,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 ---
 
 ## LAB 9
+
+<!--continua:unidade4-lab1-->
 
 ### Objetivo: RBAC. Compreender o funcionamento do controle de acesso RBAC no kubernetes -- o controle de acesso pode ser dividido entre AuthN e AuthZ (autenticação e autorização); o foco aqui é AuthZ, já que existem diversas formas de autenticação no Kubernetes. Pra melhor visualização das saídas, recomenda-se ter o comando `jq` instalado.
 
@@ -438,13 +444,18 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 ## LAB 10
 
-<!--console:k8s-->
+<!--continua:unidade4-lab1-->
 
 ### Objetivo: Instalando o Istio no k3d e observando a injeção de sidecar. Instalar o Istio em modo sidecar, subir o Bookinfo e confirmar visualmente a diferença entre um pod com e sem sidecar.
 
-1. Suba o cluster k3d deste grupo de labs (10 a 14 usam um cluster próprio, separado do que os Labs 7-9 usam — o Istio tem requisitos de porta e recursos específicos), e baixe o `istioctl`
+1. Os Labs 10 a 14 usam um cluster k3d próprio, separado do que os Labs 7-9 usam (o Istio tem requisitos de porta e recursos específicos) -- pare o cluster `lab` (não precisa dele agora, e os dois rodando ao mesmo tempo consomem RAM/CPU à toa) e suba o cluster `istio-lab`, e baixe o `istioctl`
 
     ```bash
+    # Poe o cluster dos Labs 1-9 pra dormir -- ele continua existindo
+    # (nada e' perdido), so' os containers dos nos ficam parados ate'
+    # um "k3d cluster start lab" no futuro.
+    k3d cluster stop lab
+
     # Cria o cluster k3d com uma porta exposta para o ingress gateway do Istio.
     # --disable=traefik: o k3s vem com o Traefik habilitado por padrão como
     # ingress controller; sem desabilitá-lo, ele ocupa a porta 80 do load
@@ -458,6 +469,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
     export PATH="$PWD/istio-1.30.2/bin:$PATH"
     istioctl version --remote=false
     ```
+
+    > **Nota:** se você já tinha criado o `istio-lab` antes nesta mesma sessão (voltou pra este lab depois de sair), o `k3d cluster create` vai falhar dizendo que o cluster já existe -- use `k3d cluster start istio-lab` no lugar, só pra acordar ele de novo.
 
     ```output
     NAME                       STATUS   ROLES                  AGE   VERSION
@@ -552,7 +565,6 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 ## LAB 11
 
-<!--console:k8s-->
 <!--continua:unidade5-lab10-->
 
 ### Objetivo: Traffic Management — canary com VirtualService e DestinationRule. Aplicar `DestinationRule` (define os subsets v1/v2/v3 por label) e `VirtualService` (decide o peso), e observar o split de tráfego 90/10 de verdade.
@@ -663,7 +675,6 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 ## LAB 12
 
-<!--console:k8s-->
 <!--continua:unidade5-lab10-->
 
 ### Objetivo: Segurança — mTLS (PeerAuthentication) e AuthorizationPolicy. Aplicar `PeerAuthentication` em modo `STRICT` e uma `AuthorizationPolicy` restringindo quem pode chamar o serviço `reviews`.
@@ -772,7 +783,6 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 ## LAB 13
 
-<!--console:k8s-->
 <!--continua:unidade5-lab10-->
 
 ### Objetivo: Resiliência — outlier detection. Fazer uma réplica de `reviews` responder mal de propósito — continuando `Ready` o tempo todo — e observar os três momentos: saudável → ejetado → de volta ao pool.
@@ -929,7 +939,6 @@ Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. 
 
 ## LAB 14
 
-<!--console:k8s-->
 <!--continua:unidade5-lab10-->
 
 ### Objetivo: Troubleshooting — analyze, proxy-status e proxy-config. Introduzir dois problemas de propósito e usar `istioctl analyze`, `proxy-status` e `proxy-config` para encontrá-los, sem olhar a resposta antes.
