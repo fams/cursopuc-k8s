@@ -80,6 +80,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 1. Criação do `ConfigMap`
    1. Crie o arquivo `my-app-configmap.yaml`:
 
+      <!--arquivo:my-app-configmap.yaml-->
+
       ```yaml
       apiVersion: v1
       kind: ConfigMap
@@ -104,6 +106,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 2. Criação do Pod com Sidecar
    1. Crie o arquivo `myapp-pod.yaml`:
+
+      <!--arquivo:myapp-pod.yaml-->
 
       ```yaml
       apiVersion: v1
@@ -173,6 +177,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
    1. Crie um arquivo chamado `my-replicaset.yaml`:
 
+      <!--arquivo:my-replicaset.yaml-->
+
       ```yaml
       apiVersion: apps/v1
       kind: ReplicaSet
@@ -241,6 +247,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 2. Criação do Deployment
    1. Crie um arquivo chamado `my-deployment.yaml`:
 
+      <!--arquivo:my-deployment.yaml-->
+
       ```yaml
       apiVersion: apps/v1
       kind: Deployment
@@ -283,6 +291,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 3. Disparando um rollout por alteração do manifesto
    1. Edite o arquivo `my-deployment.yaml` para atualizar a versão do `kube-test-container` para 1.1:
+
+      <!--arquivo:my-deployment.yaml-->
 
       ```yaml
       apiVersion: apps/v1

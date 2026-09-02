@@ -59,7 +59,7 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
     2. Vamos agora criar um PVC, um persistentVolumeClaim que se ligue em um dos volumes
 
         ```bash
-        kubectl apply -f lab7/pvc-2G.yaml
+        kubectl apply -f lab7/pvc-2g.yaml
         kubectl get pv
         ```
 
@@ -141,7 +141,7 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
      ```bash
      kubectl delete -f lab7/writer-pvc.yaml
      kubectl delete -f lab7/reader-pvc.yaml
-     kubectl delete -f lab7/pvc-2G.yaml
+     kubectl delete -f lab7/pvc-2g.yaml
      kubectl delete -f lab7/pre-provisioned.yaml
     ```
 
@@ -604,30 +604,36 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 3. Aplique o `VirtualService` com split 90/10 entre v1 e v3
 
-    ```bash
-    kubectl apply -f lab11/virtualservice-canary.yaml
-    ```
+    1. Aplique o arquivo:
 
-    ```yaml
-    # lab11/virtualservice-canary.yaml
-    apiVersion: networking.istio.io/v1
-    kind: VirtualService
-    metadata:
-      name: reviews
-    spec:
-      hosts:
-        - reviews
-      http:
-        - route:
-            - destination:
-                host: reviews
-                subset: v1
-              weight: 90               # <- 90% do tráfego
-            - destination:
-                host: reviews
-                subset: v3
-              weight: 10               # <- 10% do tráfego
-    ```
+        ```bash
+        kubectl apply -f lab11/virtualservice-canary.yaml
+        ```
+
+    2. Conteúdo de referência do arquivo aplicado:
+
+        <!--send:off-->
+
+        ```yaml
+        # lab11/virtualservice-canary.yaml
+        apiVersion: networking.istio.io/v1
+        kind: VirtualService
+        metadata:
+          name: reviews
+        spec:
+          hosts:
+            - reviews
+          http:
+            - route:
+                - destination:
+                    host: reviews
+                    subset: v1
+                  weight: 90               # <- 90% do tráfego
+                - destination:
+                    host: reviews
+                    subset: v3
+                  weight: 10               # <- 10% do tráfego
+        ```
 
 4. Gere um volume maior de chamadas e conte a distribuição real
 
@@ -681,10 +687,31 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 > Pré-requisito: Lab 10 concluído (Bookinfo no ar).
 
-1. Confirme que, por padrão, qualquer serviço do mesh consegue chamar `reviews`
+1. Crie o `sniffer` explicitamente SEM sidecar, mesmo o namespace `default` já estando com `istio-injection=enabled` desde o Lab 10 -- a anotação `sidecar.istio.io/inject: "false"` no próprio Pod tem prioridade sobre o label do namespace, e é o mecanismo padrão do Istio pra isso
+
+    <!--arquivo:sniffer-sem-sidecar.yaml-->
+
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: sniffer
+      namespace: default
+      annotations:
+        sidecar.istio.io/inject: "false"    # <- sobrepõe o label do namespace
+    spec:
+      containers:
+        - name: sniffer
+          image: curlimages/curl
+          command: ["sleep", "3600"]
+    ```
 
     ```bash
-    kubectl run sniffer --image=curlimages/curl -n default --restart=Never -- sleep 3600
+    kubectl apply -f sniffer-sem-sidecar.yaml
+
+    # Confirme 1/1 (sem sidecar), apesar do namespace inteiro estar injetado:
+    kubectl get pod sniffer
+
     kubectl exec sniffer -- curl -s -o /dev/null -w "%{http_code}\n" http://reviews:9080/reviews/0
     ```
 
@@ -692,35 +719,43 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
     200
     ```
 
+    Mesmo sem sidecar, a chamada funciona: o `PeerAuthentication` ainda não existe, então o mTLS do mesh está em modo `PERMISSIVE` (o padrão), que aceita tráfego em texto puro de fora do mesh.
+
 2. Aplique `PeerAuthentication` em modo `STRICT` para o namespace `default`
 
-    ```bash
-    kubectl apply -f lab12/peer-authentication-strict.yaml
-    ```
+    1. Aplique o arquivo:
 
-    ```yaml
-    # lab12/peer-authentication-strict.yaml
-    apiVersion: security.istio.io/v1
-    kind: PeerAuthentication
-    metadata:
-      name: default
-      namespace: default
-    spec:
-      mtls:
-        mode: STRICT                  # <- exige mTLS de quem chamar
-    ```
+        ```bash
+        kubectl apply -f lab12/peer-authentication-strict.yaml
+        ```
 
-    O pod `sniffer` não tem sidecar (foi criado antes da label de injeção ou sem reiniciar) — então ele passa a falhar:
+    2. Conteúdo de referência do arquivo aplicado:
 
-    ```bash
-    kubectl exec sniffer -- curl -s -o /dev/null -w "%{http_code}\n" --max-time 3 http://reviews:9080/reviews/0
-    ```
+        <!--send:off-->
 
-    ```output
-    000
-    ```
+        ```yaml
+        # lab12/peer-authentication-strict.yaml
+        apiVersion: security.istio.io/v1
+        kind: PeerAuthentication
+        metadata:
+          name: default
+          namespace: default
+        spec:
+          mtls:
+            mode: STRICT                  # <- exige mTLS de quem chamar
+        ```
 
-    Isso ilustra o "Never trust, always verify": sem certificado mTLS válido, a chamada nem se completa.
+    3. O pod `sniffer` continua sem sidecar (por causa da anotação do passo anterior) — então ele passa a falhar:
+
+        ```bash
+        kubectl exec sniffer -- curl -s -o /dev/null -w "%{http_code}\n" --max-time 3 http://reviews:9080/reviews/0
+        ```
+
+        ```output
+        000
+        ```
+
+        Isso ilustra o "Never trust, always verify": sem certificado mTLS válido, a chamada nem se completa.
 
 3. Recrie o `sniffer` agora COM sidecar, e confirme que ele volta a funcionar
 
@@ -736,34 +771,40 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 4. Agora restrinja por identidade: só o `productpage` pode chamar `reviews` — o `sniffer`, mesmo com sidecar e mTLS válido, deve ser barrado
 
-    ```bash
-    kubectl apply -f lab12/authorizationpolicy-reviews-viewer.yaml
+    1. Aplique a policy e confirme o bloqueio:
 
-    kubectl exec sniffer -c sniffer -- curl -s -o /dev/null -w "%{http_code}\n" http://reviews:9080/reviews/0
-    ```
+        ```bash
+        kubectl apply -f lab12/authorizationpolicy-reviews-viewer.yaml
 
-    ```yaml
-    # lab12/authorizationpolicy-reviews-viewer.yaml
-    apiVersion: security.istio.io/v1
-    kind: AuthorizationPolicy
-    metadata:
-      name: reviews-viewer
-      namespace: default
-    spec:
-      selector:
-        matchLabels:
-          app: reviews                # <- aplica-se aos pods do "reviews"
-      action: ALLOW
-      rules:
-        - from:
-            - source:
-                # Identidade do ServiceAccount do productpage: única permitida
-                principals: ["cluster.local/ns/default/sa/bookinfo-productpage"]
-    ```
+        kubectl exec sniffer -c sniffer -- curl -s -o /dev/null -w "%{http_code}\n" http://reviews:9080/reviews/0
+        ```
 
-    ```output
-    403
-    ```
+        ```output
+        403
+        ```
+
+    2. Conteúdo de referência do arquivo aplicado:
+
+        <!--send:off-->
+
+        ```yaml
+        # lab12/authorizationpolicy-reviews-viewer.yaml
+        apiVersion: security.istio.io/v1
+        kind: AuthorizationPolicy
+        metadata:
+          name: reviews-viewer
+          namespace: default
+        spec:
+          selector:
+            matchLabels:
+              app: reviews                # <- aplica-se aos pods do "reviews"
+          action: ALLOW
+          rules:
+            - from:
+                - source:
+                    # Identidade do ServiceAccount do productpage: única permitida
+                    principals: ["cluster.local/ns/default/sa/bookinfo-productpage"]
+        ```
 
     `403`, não `000` — a diferença importante: mTLS (passo 2) barra por falta de identidade nenhuma; `AuthorizationPolicy` (esse passo) barra por identidade errada, mesmo com mTLS válido. Confirme que o `productpage` continua funcionando normalmente:
 
@@ -789,73 +830,109 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 > Pré-requisito: Lab 10 concluído (Bookinfo no ar).
 
-Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. Ele volta aqui, mas pra outro propósito: em vez de `subsets`, o campo que importa agora é `outlierDetection` — a parte do `DestinationRule` que ejeta um host que continua `Ready` no Kubernetes mas está respondendo mal. Pra provocar isso sem quebrar de verdade nenhum pod do Bookinfo, no lugar da v2 real vamos subir o [`chaos-http`](https://github.com/fams/chaos-http): um servidor HTTP minúsculo, feito pra isso, cujo código de resposta é controlável via `curl` (`GET /control?httpCode=500`) sem nunca deixar de responder `/health`/`/ready`.
+Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. Ele volta aqui, mas pra outro propósito: além de `subsets`, o campo que importa agora é `outlierDetection` — a parte do `DestinationRule` que ejeta um host que continua `Ready` no Kubernetes mas está respondendo mal. Pra provocar isso sem quebrar de verdade nenhum pod do Bookinfo, no lugar da v2 real vamos subir o [`chaos-http`](https://github.com/fams/chaos-http): um servidor HTTP minúsculo, feito pra isso, cujo código de resposta é controlável via `curl` (`GET /control?httpCode=500`) sem nunca deixar de responder `/health`/`/ready`.
 
-1. Tire a v2 real de cena e suba o `chaos-http` no lugar dela, e aplique o `DestinationRule` com `outlierDetection`
+`outlierDetection.consecutive5xxErrors` só ejeta um host depois de N falhas *seguidas* **contra esse mesmo host**. O `chaos-v2` leva o rótulo `app: reviews` — o mesmo que `reviews-v1` e `reviews-v3` — e cai automaticamente nos `Endpoints` do `Service reviews`; mas em round-robin puro entre 3 réplicas, 3 falhas seguidas bater exatamente na mesma é raro (a maioria das janelas de 3 chamadas cai em réplicas diferentes) — a ejeção quase nunca dispara. Por isso este lab define um `subset` "chaos" (só o `chaos-v2`, via `chaos-control: chaos-v2`) e um `VirtualService` que manda 100% do tráfego de `reviews` pra esse subset enquanto o exercício dura — assim toda chamada bate garantidamente no host doente, as falhas seguidas se acumulam de verdade, e a ejeção (e a recuperação) ficam observáveis.
 
-    ```bash
-    kubectl scale deployment reviews-v2 --replicas=0
+1. Tire a v2 real de cena e suba o `chaos-http` no lugar dela, e aplique o `DestinationRule` com `outlierDetection` e o `VirtualService` que isola o tráfego no `chaos-v2`
 
-    kubectl apply -f lab13/chaos-v2.yaml
-    kubectl apply -f lab13/destinationrule-outlier.yaml
-    ```
+    1. Aplique os manifestos:
 
-    ```yaml
-    # lab13/chaos-v2.yaml (resumido — veja o arquivo completo pros comentários)
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      name: chaos-v2
-    spec:
-      replicas: 1
-      selector:
-        matchLabels: {app: reviews, chaos-control: chaos-v2}
-      template:
+        ```bash
+        kubectl scale deployment reviews-v2 --replicas=0
+
+        kubectl apply -f lab13/chaos-v2.yaml
+        kubectl apply -f lab13/destinationrule-outlier.yaml
+        kubectl apply -f lab13/virtualservice-chaos-only.yaml
+        ```
+
+    2. Conteúdo de referência do `chaos-v2.yaml` aplicado (resumido — veja o arquivo completo pros comentários):
+
+        <!--send:off-->
+
+        ```yaml
+        # lab13/chaos-v2.yaml (resumido — veja o arquivo completo pros comentários)
+        apiVersion: apps/v1
+        kind: Deployment
         metadata:
-          labels: {app: reviews, chaos-control: chaos-v2}   # <- app: reviews entra no pool
+          name: chaos-v2
         spec:
-          containers:
-            - name: chaos-v2
-              image: fams/chaos-http:1.1.0
-              env: [{name: PORT, value: "9080"}]
-              ports: [{containerPort: 9080}]
-              readinessProbe: {httpGet: {path: /ready, port: 9080}, periodSeconds: 3}
-              livenessProbe: {httpGet: {path: /health, port: 9080}, periodSeconds: 5}
-    ---
-    apiVersion: v1
-    kind: Service
-    metadata:
-      name: chaos-v2-control        # <- Service separado, só pra controlar o chaos-v2
-    spec:
-      selector: {chaos-control: chaos-v2}
-      ports: [{port: 9080, targetPort: 9080}]
-    ```
+          replicas: 1
+          selector:
+            matchLabels: {app: reviews, chaos-control: chaos-v2}
+          template:
+            metadata:
+              labels: {app: reviews, chaos-control: chaos-v2}   # <- app: reviews entra no pool
+            spec:
+              containers:
+                - name: chaos-v2
+                  image: fams/chaos-http:1.1.0
+                  env: [{name: PORT, value: "9080"}]
+                  ports: [{containerPort: 9080}]
+                  readinessProbe: {httpGet: {path: /ready, port: 9080}, periodSeconds: 3}
+                  livenessProbe: {httpGet: {path: /health, port: 9080}, periodSeconds: 5}
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: chaos-v2-control        # <- Service separado, só pra controlar o chaos-v2
+        spec:
+          selector: {chaos-control: chaos-v2}
+          ports: [{port: 9080, targetPort: 9080}]
+        ```
 
-    ```yaml
-    # lab13/destinationrule-outlier.yaml
-    apiVersion: networking.istio.io/v1
-    kind: DestinationRule
-    metadata:
-      name: reviews
-    spec:
-      host: reviews
-      trafficPolicy:
-        outlierDetection:
-          consecutive5xxErrors: 3      # <- ejeta depois de 3 erros seguidos
-          interval: 10s                # <- reavalia a cada 10s
-          baseEjectionTime: 30s        # <- fica de fora por 30s
-          maxEjectionPercent: 50       # <- nunca ejeta mais que 50% do pool
-    ```
+    3. Conteúdo de referência do `destinationrule-outlier.yaml` aplicado:
 
-    O `chaos-v2` leva o rótulo `app: reviews` — o mesmo que `reviews-v1` e `reviews-v3` — e é exatamente esse rótulo que o `Service reviews` usa como seletor (sem filtrar por versão). Por isso o `chaos-v2` cai automaticamente nos `Endpoints` do `reviews`, junto com v1 e v3: sem `VirtualService`, o tráfego já é round-robin entre eles (como no Lab 10), e é um host individual desse pool — não uma versão inteira — que o `outlierDetection` ejeta.
+        <!--send:off-->
 
-    Assim como no Lab 11, as chamadas a `reviews` são feitas de um pod auxiliar com sidecar próprio (`meshclient`), não de dentro do `istio-proxy` — veja lá o porquê.
+        ```yaml
+        # lab13/destinationrule-outlier.yaml
+        apiVersion: networking.istio.io/v1
+        kind: DestinationRule
+        metadata:
+          name: reviews
+        spec:
+          host: reviews
+          subsets:
+            - name: chaos
+              labels:
+                chaos-control: chaos-v2
+              trafficPolicy:
+                outlierDetection:
+                  consecutive5xxErrors: 3      # <- ejeta depois de 3 erros seguidos
+                  interval: 10s                # <- reavalia a cada 10s
+                  baseEjectionTime: 30s        # <- fica de fora por 30s
+                  maxEjectionPercent: 100      # <- subset de host único: precisa poder ejetar 100%
+        ```
 
-    ```bash
-    kubectl run meshclient --image=curlimages/curl -n default -- sleep 3600
-    kubectl get pod meshclient chaos-v2
-    # Espere os dois ficarem 2/2 (sidecar injetado) antes de continuar
-    ```
+    4. Conteúdo de referência do `virtualservice-chaos-only.yaml` aplicado:
+
+        <!--send:off-->
+
+        ```yaml
+        # lab13/virtualservice-chaos-only.yaml
+        apiVersion: networking.istio.io/v1
+        kind: VirtualService
+        metadata:
+          name: reviews
+        spec:
+          hosts:
+            - reviews
+          http:
+            - route:
+                - destination:
+                    host: reviews
+                    subset: chaos            # <- 100% do tráfego pro chaos-v2
+        ```
+
+    5. Assim como no Lab 11, as chamadas a `reviews` são feitas de um pod auxiliar com sidecar próprio (`meshclient`), não de dentro do `istio-proxy` — veja lá o porquê.
+
+        ```bash
+        kubectl run meshclient --image=curlimages/curl -n default -- sleep 3600
+        kubectl get pod meshclient
+        kubectl get pod -l chaos-control=chaos-v2
+        # Espere os dois ficarem 2/2 (sidecar injetado) antes de continuar
+        ```
 
 2. **Momento 1 — tudo saudável.** Confirme que as 3 versões respondem normalmente
 
@@ -873,34 +950,35 @@ Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. 
 
     ```bash
     kubectl exec meshclient -c meshclient -- curl -s "http://chaos-v2-control:9080/control?httpCode=500"
-    kubectl get pod chaos-v2
+    kubectl get pod -l chaos-control=chaos-v2
     ```
 
     ```bash
-    # Gere chamadas — as primeiras tentativas pra chaos-v2 vão falhar (500),
-    # até o outlier detection ejetar completamente esse host do pool. A
-    # ejeção só é reavaliada a cada "interval" (10s), então repita algumas
-    # rodadas em vez de olhar só a primeira leva de chamadas.
-    for r in 1 2 3; do
-      for i in $(seq 1 10); do
-        kubectl exec meshclient -c meshclient -- curl -s -o /dev/null -w "%{http_code} " --max-time 2 http://reviews:9080/reviews/0
-      done
-      echo
-      sleep 10
-    done
-    ```
-
-    Nas primeiras chamadas você deve ver algum `500` — depois de `consecutive5xxErrors: 3`, o Envoy para de rotear pro `chaos-v2` e as chamadas seguintes vão só pras réplicas saudáveis, voltando a `200` consistente. Confirme a ejeção como dado real do Envoy, não estimado pela proporção de respostas:
-
-    ```bash
-    kubectl exec meshclient -c istio-proxy -- \
-      curl -s http://localhost:15000/clusters | grep "outbound|9080||reviews" | grep health_flags
+    # Gere chamadas — as primeiras vão bater no chaos-v2 (garantido pelo
+    # VirtualService do passo anterior) e falhar com 500, até o outlier
+    # detection acumular 3 falhas SEGUIDAS e ejetar o host. A partir daí, como
+    # o subset "chaos" só tem esse único host, o Envoy não tem mais nenhum
+    # host saudável pra rotear dentro desse subset — as chamadas passam a
+    # retornar 503 (em vez de 500), o próprio Envoy bloqueando a rota, sem
+    # nem tentar o backend doente.
+    for i in 1 2 3 4; do
+      kubectl exec meshclient -c meshclient -- curl -s -o /dev/null -w "%{http_code} " --max-time 2 http://reviews:9080/reviews/0
+    done; echo
     ```
 
     ```output
-    outbound|9080||reviews.default.svc.cluster.local::10.42.0.4:9080::health_flags::healthy
-    outbound|9080||reviews.default.svc.cluster.local::10.42.0.5:9080::health_flags::healthy
-    outbound|9080||reviews.default.svc.cluster.local::10.42.1.9:9080::health_flags::/failed_outlier_check
+    500 500 500 503
+    ```
+
+    Confirme a ejeção como dado real do Envoy, não estimado pelo código HTTP:
+
+    ```bash
+    kubectl exec meshclient -c istio-proxy -- \
+      curl -s http://localhost:15000/clusters | grep "outbound|9080|chaos|reviews" | grep health_flags
+    ```
+
+    ```output
+    outbound|9080|chaos|reviews.default.svc.cluster.local::10.42.1.7:9080::health_flags::/failed_outlier_check
     ```
 
 4. **Momento 3 — recuperação.** Conserte o `chaos-v2` via API e confirme que ele volta ao pool depois do `baseEjectionTime`
@@ -919,16 +997,21 @@ Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. 
     200 200 200 200 200 200 200 200 200 200
     ```
 
-    Confirme no Envoy que nenhum host aparece mais como ejetado:
+    Confirme no Envoy que o host não aparece mais como ejetado:
 
     ```bash
     kubectl exec meshclient -c istio-proxy -- \
-      curl -s http://localhost:15000/clusters | grep "outbound|9080||reviews" | grep health_flags
+      curl -s http://localhost:15000/clusters | grep "outbound|9080|chaos|reviews" | grep health_flags
+    ```
+
+    ```output
+    outbound|9080|chaos|reviews.default.svc.cluster.local::10.42.1.7:9080::health_flags::healthy
     ```
 
 5. Limpeza
 
     ```bash
+    kubectl delete -f lab13/virtualservice-chaos-only.yaml
     kubectl delete pod meshclient
     kubectl delete -f lab13/chaos-v2.yaml
     kubectl scale deployment reviews-v2 --replicas=1
@@ -947,31 +1030,37 @@ Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. 
 
 1. **Bug 1 — VirtualService com host inexistente.** Aplique este manifesto quebrado de propósito
 
-    ```bash
-    kubectl apply -f lab14/virtualservice-quebrado.yaml
-    ```
+    1. Aplique o arquivo:
 
-    ```yaml
-    # lab14/virtualservice-quebrado.yaml
-    apiVersion: networking.istio.io/v1
-    kind: VirtualService
-    metadata:
-      name: reviews-quebrado
-    spec:
-      hosts:
-        - reviews
-      http:
-        - route:
-            - destination:
-                host: reviews
-                subset: v9             # <- subset inexistente, de propósito
-    ```
+        ```bash
+        kubectl apply -f lab14/virtualservice-quebrado.yaml
+        ```
 
-    Use `istioctl analyze` para encontrar o problema antes de qualquer chamada falhar
+    2. Conteúdo de referência do arquivo aplicado:
 
-    ```bash
-    istioctl analyze
-    ```
+        <!--send:off-->
+
+        ```yaml
+        # lab14/virtualservice-quebrado.yaml
+        apiVersion: networking.istio.io/v1
+        kind: VirtualService
+        metadata:
+          name: reviews-quebrado
+        spec:
+          hosts:
+            - reviews
+          http:
+            - route:
+                - destination:
+                    host: reviews
+                    subset: v9             # <- subset inexistente, de propósito
+        ```
+
+    3. Use `istioctl analyze` para encontrar o problema antes de qualquer chamada falhar
+
+        ```bash
+        istioctl analyze
+        ```
 
     ```output
     Error [IST0101] (VirtualService default/reviews-quebrado) Referenced host+subset in destinationrule not found: "reviews+v9"
