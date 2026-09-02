@@ -157,11 +157,84 @@ Criar um pod com dois containers: um container principal executando o Nginx e um
 
 ### Objetivo
 
-Criar e gerenciar um `Deployment` no Kubernetes, verificar seus detalhes, reiniciar o rollout, monitorar o status e escalar o deployment e o replicaset.
+Entender o `ReplicaSet` como o controller que garante um número fixo de réplicas de um Pod (e
+suas limitações), pra então criar e gerenciar um `Deployment` no Kubernetes -- verificar seus
+detalhes, reiniciar o rollout, monitorar o status e escalar o deployment e o replicaset.
 
 ---
 
-1. Criação do Deployment
+1. Criação de um `ReplicaSet` puro
+
+   Antes de usar um `Deployment`, vale ver o controller que ele gerencia por baixo dos panos.
+
+   1. Crie um arquivo chamado `my-replicaset.yaml`:
+
+      ```yaml
+      apiVersion: apps/v1
+      kind: ReplicaSet
+      metadata:
+        name: my-replicaset
+      spec:
+        replicas: 3
+        selector:
+          matchLabels:
+            app: myapp-rs
+        template:
+          metadata:
+            labels:
+              app: myapp-rs
+          spec:
+            containers:
+            - name: nginx-container
+              image: nginx:1.26
+              ports:
+              - containerPort: 80
+      ```
+
+   2. Aplique o arquivo e verifique os Pods criados:
+
+      ```bash
+      kubectl apply -f my-replicaset.yaml
+
+      # Verifique o ReplicaSet e os 3 Pods que ele criou:
+      kubectl get rs my-replicaset
+      kubectl get pods -l app=myapp-rs
+      ```
+
+   3. Teste o self-healing: apague um dos Pods e veja o `ReplicaSet` recriar outro sozinho, pra
+      manter o número de réplicas declarado:
+
+      ```bash
+      kubectl delete pod <nome-de-um-dos-pods>
+
+      # Repare no novo Pod (AGE baixo) mantendo o total em 3:
+      kubectl get pods -l app=myapp-rs
+      ```
+
+   4. Agora veja a limitação do `ReplicaSet`: altere a imagem do template (`nginx:1.26` para
+      `nginx:1.27`) no `my-replicaset.yaml` e reaplique:
+
+      ```bash
+      kubectl apply -f my-replicaset.yaml
+
+      # Repare que os 3 Pods continuam rodando a imagem antiga:
+      kubectl get pods -l app=myapp-rs -o custom-columns=NOME:.metadata.name,IMAGEM:.spec.containers[0].image
+      ```
+
+      > **Nota:** o `ReplicaSet` só garante a CONTAGEM de réplicas -- ele nunca substitui um Pod
+      > já rodando só porque o template mudou, só cria/remove Pods quando o número de réplicas
+      > atuais diverge do declarado (foi por isso que apagar um Pod no passo anterior disparou uma
+      > recriação, mas mudar a imagem não disparou nada). É exatamente essa lacuna -- fazer um
+      > rollout de forma controlada -- que o `Deployment` preenche, criando um NOVO `ReplicaSet` a
+      > cada mudança de template e migrando os Pods de um pro outro aos poucos.
+
+   5. Limpeza:
+
+      ```bash
+      kubectl delete -f my-replicaset.yaml
+      ```
+
+2. Criação do Deployment
    1. Crie um arquivo chamado `my-deployment.yaml`:
 
       ```yaml
@@ -204,7 +277,7 @@ Criar e gerenciar um `Deployment` no Kubernetes, verificar seus detalhes, reinic
       kubectl describe deploy my-deployment
        ```
 
-2. Disparando um rollout por alteração do manifesto
+3. Disparando um rollout por alteração do manifesto
    1. Edite o arquivo `my-deployment.yaml` para atualizar a versão do `kube-test-container` para 1.1:
 
       ```yaml
@@ -247,7 +320,7 @@ Criar e gerenciar um `Deployment` no Kubernetes, verificar seus detalhes, reinic
       kubectl describe deploy my-deployment
       ```
 
-3. Rollout do Deployment sem alteração de template
+4. Rollout do Deployment sem alteração de template
 
       ```bash
       # Reinicie os PODs do  `Deployment`:
@@ -257,7 +330,7 @@ Criar e gerenciar um `Deployment` no Kubernetes, verificar seus detalhes, reinic
       kubectl rollout status deployment my-deployment
       ```
 
-4. Exercício de Escalonamento
+5. Exercício de Escalonamento
    1. Escale o `Deployment` para 5 réplicas:
 
       ```bash
