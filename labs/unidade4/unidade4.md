@@ -1,18 +1,14 @@
 # LABS
 
-Esses exercícios permitem visualizar os objetos funcionando no kubernetes. Foram pensados com o kuberntes instalado pelo docker-desktop, requisito do curso
+Esses exercícios permitem visualizar os objetos funcionando no kubernetes. Foram pensados com o kubernetes instalado pelo k3d, requisito do curso
 
 Recomenda-se criar um diretório por lab para que os arquivos criados possam ficar separados
 
 Os fontes desses labs e também outros arquivos estarão no <https://github.com/fams/cursopuc-k8s>
 
-## Lab 1
+## LAB 1
 
-### Exercício: Criação de Pods - Interativa e Declarativa
-
-#### Objetivo
-
-Criar um pod no Kubernetes com o nome `my-nginx` utilizando tanto o modo interativo (comandos diretos via CLI) quanto o modo declarativo (através de um arquivo YAML).
+### Objetivo: Criação de Pods - Interativa e Declarativa. Criar um pod no Kubernetes com o nome `my-nginx` utilizando tanto o modo interativo (comandos diretos via CLI) quanto o modo declarativo (através de um arquivo YAML).
 
 ---
 
@@ -65,11 +61,9 @@ Criar um pod no Kubernetes com o nome `my-nginx` utilizando tanto o modo interat
 
 ---
 
-## Lab 2
+## LAB 2
 
-### Objetivo
-
-Criar um pod com dois containers: um container principal executando o Nginx e um container sidecar executando BusyBox. Além disso, montar um `ConfigMap` como volume no pod.
+### Objetivo: Criar um pod com dois containers: um container principal executando o Nginx e um container sidecar executando BusyBox. Além disso, montar um `ConfigMap` como volume no pod.
 
 1. Criação do `ConfigMap`
    1. Crie o arquivo `my-app-configmap.yaml`:
@@ -153,13 +147,9 @@ Criar um pod com dois containers: um container principal executando o Nginx e um
 
 ---
 
-## Lab 3
+## LAB 3
 
-### Objetivo
-
-Entender o `ReplicaSet` como o controller que garante um número fixo de réplicas de um Pod (e
-suas limitações), pra então criar e gerenciar um `Deployment` no Kubernetes -- verificar seus
-detalhes, reiniciar o rollout, monitorar o status e escalar o deployment e o replicaset.
+### Objetivo: Entender o `ReplicaSet` como o controller que garante um número fixo de réplicas de um Pod (e suas limitações), pra então criar e gerenciar um `Deployment` no Kubernetes -- verificar seus detalhes, reiniciar o rollout, monitorar o status e escalar o deployment e o replicaset.
 
 ---
 
@@ -362,11 +352,9 @@ detalhes, reiniciar o rollout, monitorar o status e escalar o deployment e o rep
 
 ---
 
-## Lab 4
+## LAB 4
 
-### Objetivo
-
-Criar um serviço `ClusterIP` para o `Deployment` criado anteriormente, verificar seu funcionamento e gerenciar suas propriedades.
+### Objetivo: Criar um serviço `ClusterIP` para o `Deployment` criado anteriormente, verificar seu funcionamento e gerenciar suas propriedades.
 
 1. Criação do Serviço
    1. Crie o serviço `ClusterIP` de forma declarativa:
@@ -442,11 +430,9 @@ Criar um serviço `ClusterIP` para o `Deployment` criado anteriormente, verifica
 
 ---
 
-## Lab 5 Criando confiMaps
+## LAB 5
 
-### Objetivo
-
-Vimos como criar e configMap no primeiro Lab. Vamos aprender a criar e usá-los de outras formas
+### Objetivo: Criando ConfigMaps. Vimos como criar um configMap no primeiro Lab. Vamos aprender a criar e usá-los de outras formas.
 
 ---
 
@@ -460,7 +446,7 @@ Vimos como criar e configMap no primeiro Lab. Vamos aprender a criar e usá-los 
 
    2. Você deve ter obtido algo parecido com isso:
 
-      ```yaml
+      ```output
         apiVersion: v1
         data:
           products.json: |-
@@ -536,7 +522,7 @@ Vimos como criar e configMap no primeiro Lab. Vamos aprender a criar e usá-los 
 
    2. Vefirique o arquivo criado. Ele deve ser algo parecido com isso:
 
-      ```yaml
+      ```output
         apiVersion: v1
         data:
           MONGO_URI: mongodb://mongo.default.svc:27017/my_database
@@ -555,11 +541,9 @@ Vimos como criar e configMap no primeiro Lab. Vamos aprender a criar e usá-los 
 
 ---
 
-## Lab 6 Montando configMaps
+## LAB 6
 
-### Objetivo
-
-Aprender as várias formas de uso de um configmap em um pod
+### Objetivo: Montando ConfigMaps. Aprender as várias formas de uso de um configmap em um pod.
 
 1. Para esse lab iremos utilizar uma aplicação simples de api. Essa api cria um CRUD simples, salvando em um banco mongodb utilizando arquivos json especificados. Por padrão, veremos que a api está provendo a coleçao users e a configuração do banco mongodb está diretamente feita no manifesto do deployment. Vamos aos passos de instalação
 
@@ -591,7 +575,7 @@ Aprender as várias formas de uso de um configmap em um pod
 
    5. Você deve obter algo parecido com isso, se for formatado:
 
-        ```json
+        ```output
             {
               "collections": [
                 {
@@ -631,7 +615,9 @@ Aprender as várias formas de uso de um configmap em um pod
 
     1. Vamos obter o endpoint do mongo utilizando o configmap apitool-conf, edite o deployment do apitool e troque a variável fixa `MONGO_URI` para uma oriunda do configmap.
 
-       ```yml
+       <!--send:off-->
+
+       ```yaml
         # De 
         env:
         - name: MONGO_URI
@@ -656,6 +642,8 @@ Aprender as várias formas de uso de um configmap em um pod
 
         No nível da definiçao de containers, adicione o volume:
 
+        <!--send:off-->
+
         ```yaml
         volumes:
           - name: schemas
@@ -664,6 +652,8 @@ Aprender as várias formas de uso de um configmap em um pod
         ```
 
         No nível do container, adicione o ponto de montagem:
+
+        <!--send:off-->
 
         ```yaml
         ...
@@ -677,6 +667,8 @@ Aprender as várias formas de uso de um configmap em um pod
         ```
 
         Existe a possibilidade de montagem de somente um arquivo no lugar da pasta, para isso utilize a diretiva subPath na montagem:
+
+        <!--send:off-->
 
         ```yaml
         ...
@@ -694,14 +686,14 @@ Aprender as várias formas de uso de um configmap em um pod
 
     4. Aplique a mudança no deployment e vamos verificar o funcionamento da api:
 
-        ```kubectl
+        ```bash
         kubectl port-forward svc/apitool-service 5000:5000 &
         curl http://localhost:5000/collections
         ```
 
        Você deve obeter algo parecido com isso:
 
-       ```yml
+       ```output
         {
           "collections": [
             {
