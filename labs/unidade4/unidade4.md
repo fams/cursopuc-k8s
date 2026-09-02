@@ -38,6 +38,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 3. Criação de um Pod - Modo Declarativo
    1. Crie um arquivo chamado `my-nginx-pod.yaml` com o seguinte conteúdo:
 
+      <!--arquivo:my-nginx-pod.yaml-->
+
       ```yaml
       apiVersion: v1
       kind: Pod

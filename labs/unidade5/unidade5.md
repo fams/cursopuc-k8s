@@ -17,7 +17,7 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
     1. Crie os deployments gravador e leitor
 
         ```bash
-        Crie o escritor
+        # Crie o escritor
         kubectl apply -f lab7/writer.yaml
         # Espere pelo provisionamentod do pod
         kubectl get pod -w # Quando o escritor estiver no ar, digite CTRL+C
@@ -291,17 +291,24 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
         kubectl config view -o jsonpath='{.users[?(@.name=="puc-devops")]}' | jq
         ```
 
+        Obtendo dados da configuração atual. O contexto é a configuração de acesso ao kubernetes
+        que reúne os dados de acesso à API e os dados de autenticação -- Cluster + User:
+
         ```bash
-        # Obtendo dados da configuração atual
-        
-        # Obtendo o contexto. Contexto é uam configuração de acesso ao kubernets que possui os dados de acesso à API e os dados de autenticação.Cluster + User
         kubectl config view -o jsonpath='{.current-context}'
-        # No meu caso:
+        ```
+
+        ```output
         "k3d-lab"
+        ```
 
-        # Obtendo os dados do contexto
+        Obtendo os dados do contexto:
+
+        ```bash
         kubectl config view -o jsonpath='{.contexts[?(@.name =="k3d-lab")]}' | jq
+        ```
 
+        ```output
         {
           "name": "k3d-lab",
           "context": {
@@ -309,8 +316,11 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
             "user": "admin@k3d-lab"
           }
         }
+        ```
 
-        # Criando um contexto com o novo usuário com o cluster do contexto atual
+        Criando um contexto com o novo usuário, com o cluster do contexto atual:
+
+        ```bash
         kubectl config set-context k3d-lab-puc-devops --cluster=k3d-lab --user=puc-devops
 
         kubectl config view -o jsonpath='{.contexts[?(@.name =="k3d-lab-puc-devops")]}'
@@ -707,7 +717,7 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
     ```
 
     ```bash
-    kubectl apply -f sniffer-sem-sidecar.yaml
+    kubectl apply -f lab12/sniffer-sem-sidecar.yaml
 
     # Confirme 1/1 (sem sidecar), apesar do namespace inteiro estar injetado:
     kubectl get pod sniffer
