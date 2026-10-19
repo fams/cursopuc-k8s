@@ -171,6 +171,8 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 ### Objetivo: Entender o `ReplicaSet` como o controller que garante um número fixo de réplicas de um Pod (e suas limitações), pra então criar e gerenciar um `Deployment` no Kubernetes -- verificar seus detalhes, reiniciar o rollout, monitorar o status e escalar o deployment e o replicaset.
 
+<!--lab-platform:criterion type="kubernetes.deployment" title="Deployment disponível com cinco réplicas na versão 1.1" name="my-deployment" container="kube-tester" replicas="5" image="sverrirab/kube-test-container:v1.1"-->
+
 ---
 
 1. Criação de um `ReplicaSet` puro
