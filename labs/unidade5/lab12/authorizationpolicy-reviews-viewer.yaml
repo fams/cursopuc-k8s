@@ -1,0 +1,19 @@
+# AuthorizationPolicy: mesmo com mTLS válido, só a identidade listada em
+# "principals" pode chamar pods com o label "app: reviews". Qualquer outra
+# identidade (mesmo dentro do mesh) recebe 403 — barrado por identidade
+# errada, não por falta de certificado.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: reviews-viewer
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: reviews                # <- aplica-se aos pods do "reviews"
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            # Identidade do ServiceAccount do productpage: única permitida
+            principals: ["cluster.local/ns/default/sa/bookinfo-productpage"]

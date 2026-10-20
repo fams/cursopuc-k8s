@@ -1,0 +1,18 @@
+# Manifesto quebrado DE PROPÓSITO: aponta pro subset "v9", que não existe
+# em nenhum DestinationRule. Isso não gera erro nenhum ao aplicar (o
+# Kubernetes aceita o YAML de boa) — só quando alguém tentar chamar o
+# "reviews" é que o Envoy não vai saber pra onde rotear. É exatamente esse
+# tipo de erro "silencioso" que o "istioctl analyze" existe pra pegar antes
+# de virar um problema em produção.
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: reviews-quebrado
+spec:
+  hosts:
+    - reviews
+  http:
+    - route:
+        - destination:
+            host: reviews
+            subset: v9             # <- subset inexistente, de propósito

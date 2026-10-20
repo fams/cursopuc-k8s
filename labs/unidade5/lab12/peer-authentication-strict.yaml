@@ -1,0 +1,11 @@
+# PeerAuthentication em modo STRICT: todo pod do namespace "default" passa
+# a EXIGIR mTLS pra aceitar conexão. Um pod sem sidecar (sem certificado)
+# não consegue nem completar a conexão — "Never trust, always verify".
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: default
+spec:
+  mtls:
+    mode: STRICT                  # <- exige mTLS de quem chamar
