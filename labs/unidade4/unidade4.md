@@ -557,7 +557,7 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
       ```output
         apiVersion: v1
         data:
-          MONGO_URI: mongodb://mongo.default.svc:27017/my_database
+          MONGO_URI: mongodb://mongodb.default.svc:27017/my_database
         kind: ConfigMap
         metadata:
           creationTimestamp: null
@@ -694,9 +694,9 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
         ports:
         - containerPort: 5000
           name: http
-          volumeMounts:
-            - name: schemas
-              mountPath: /app/schemas
+        volumeMounts:
+          - name: schemas
+            mountPath: /app/schemas
         ...
         ```
 
@@ -709,10 +709,10 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
         ports:
         - containerPort: 5000
           name: http
-          volumeMounts:
-            - name: schemas
-              subPath: users.json
-              mountPath: /app/schemas/users.json
+        volumeMounts:
+          - name: schemas
+            subPath: users.json
+            mountPath: /app/schemas/users.json
         ...
         ```
 
