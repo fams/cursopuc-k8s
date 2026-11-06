@@ -1,0 +1,20 @@
+# Manda 100% do tráfego de "reviews" pro subset "chaos" (só o chaos-v2,
+# definido em lab13/destinationrule-outlier.yaml) -- sem isso, o round-robin
+# padrão entre v1/v3/chaos-v2 quase nunca acumula 3 falhas SEGUIDAS na
+# mesma réplica, e o outlierDetection nunca observa uma ejeção de verdade.
+# Com essa VirtualService, toda chamada bate no chaos-v2: as falhas se
+# acumulam de verdade, a ejeção acontece, e a recuperação (depois de
+# consertar o chaos-v2 e esperar o baseEjectionTime) também é observável
+# contra o MESMO host/cluster do Envoy.
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: reviews
+spec:
+  hosts:
+    - reviews
+  http:
+    - route:
+        - destination:
+            host: reviews
+            subset: chaos
