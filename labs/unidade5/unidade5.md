@@ -834,6 +834,10 @@ Os fontes desses labs e também outros arquivos estarão no <https://github.com/
 
 ## LAB 13
 
+> O VirtualService usado neste lab envia 100% do trafego para o subset
+> `chaos`; portanto, a verificacao inicial deve observar esse backend isolado,
+> nao tres versoes diferentes do servico.
+
 <!--continua:unidade5-lab10-->
 
 ### Objetivo: Resiliência — outlier detection. Fazer uma réplica de `reviews` responder mal de propósito — continuando `Ready` o tempo todo — e observar os três momentos: saudável → ejetado → de volta ao pool.
@@ -1032,6 +1036,9 @@ Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. 
 
 ## LAB 14
 
+> O primeiro problema e um subset `v9` inexistente no DestinationRule; o host
+> `reviews` continua sendo valido.
+
 <!--continua:unidade5-lab10-->
 
 ### Objetivo: Troubleshooting — analyze, proxy-status e proxy-config. Introduzir dois problemas de propósito e usar `istioctl analyze`, `proxy-status` e `proxy-config` para encontrá-los, sem olhar a resposta antes.
@@ -1087,7 +1094,7 @@ Você já usou o `DestinationRule` no Lab 11 pra definir `subsets` por versão. 
 
     ```bash
     kubectl create namespace reviews-v4-ns
-    kubectl apply -n reviews-v4-ns -f https://raw.githubusercontent.com/istio/istio/release-1.30/samples/bookinfo/platform/kube/bookinfo-versions.yaml 2>/dev/null || true
+    kubectl apply -n reviews-v4-ns -f https://raw.githubusercontent.com/istio/istio/release-1.30/samples/bookinfo/platform/kube/bookinfo-versions.yaml
 
     kubectl get pod -n reviews-v4-ns
     ```

@@ -197,6 +197,17 @@ kubectl get pods,svc -n gw-demo
 
 O `Gateway` define o listener — a porta e o protocolo que o controller vai expor.
 
+Para que o redirect do Lab 5 tenha um destino HTTPS funcional, crie antes um
+certificado local de laboratório e o Secret TLS correspondente:
+
+```bash
+openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+  -keyout demo.localdev.me.key -out demo.localdev.me.crt \
+  -subj "/CN=demo.localdev.me" -addext "subjectAltName=DNS:demo.localdev.me"
+kubectl create secret tls demo-tls -n gw-demo \
+  --cert=demo.localdev.me.crt --key=demo.localdev.me.key
+```
+
 #### Crie o arquivo `gateway.yaml`:
 
 ```yaml
@@ -211,6 +222,16 @@ spec:
   - name: http
     protocol: HTTP
     port: 80
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: https
+    protocol: HTTPS
+    port: 443
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: demo-tls
     allowedRoutes:
       namespaces:
         from: Same
@@ -277,6 +298,8 @@ A coluna `ACCEPTED` deve mostrar `True`.
 
 ```bash
 kubectl port-forward svc/nginx-gateway -n nginx-gateway 8080:80 &
+# Para testar o destino HTTPS do redirect, encaminhe também a porta 443:
+kubectl port-forward svc/nginx-gateway -n nginx-gateway 8443:443 &
 ```
 
 #### Teste com curl:
@@ -704,6 +727,9 @@ kubectl apply -f httproute-redirect.yaml
 
 # Teste o redirect — espera-se um HTTP 301
 curl -v -H "Host: demo.localdev.me" http://localhost:8080/ 2>&1 | grep -E "< HTTP|< Location"
+
+# O certificado é local; -k só desabilita a validação durante o laboratório.
+curl -k -H "Host: demo.localdev.me" https://localhost:8443/
 ```
 
 A saída esperada:
